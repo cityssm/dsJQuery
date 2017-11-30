@@ -10,7 +10,7 @@ Be sure to include a `dsapi.jar` that corresponds to your DocuShare installation
 available on the [Docushare Developer Network website](https://docushare.xerox.com/dsdn/). 
 
     DSServer dsServer = null;
-	 DSSession dsSession = null;
+    DSSession dsSession = null;
 		
 	 try {
         dsServer = DSFactory.createServer(ds_serverName);
