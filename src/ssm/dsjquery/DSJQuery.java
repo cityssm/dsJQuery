@@ -236,25 +236,9 @@ public class DSJQuery {
 			}
 		}
 		else if (selector.startsWith("[")) {
-
-			if (selector.contains("=")) {
-				
-				String propertyName = selector.substring(1, selector.indexOf("="));
-				
-				String startValue = selector.substring(selector.indexOf("=") + 2, selector.length() - 2);
-				
-				for (DSObject obj : newDsObjects) {
-	
-					Object value = obj.get(propertyName);
-					
-					if (value == null || !value.toString().equals(startValue)) {
-						newDsObjectsCopy.remove(obj);
-					}
-				}
-			}
-
+			
 			// starts with
-			else if (selector.contains("^=")) {
+			if (selector.contains("^=")) {
 				
 				String propertyName = selector.substring(1, selector.indexOf("^="));
 				
@@ -303,6 +287,23 @@ public class DSJQuery {
 					}
 				}
 			}
+			else if (selector.contains("=")) {
+				
+				String propertyName = selector.substring(1, selector.indexOf("="));
+				
+				String startValue = selector.substring(selector.indexOf("=") + 2, selector.length() - 2);
+				
+				for (DSObject obj : newDsObjects) {
+	
+					Object value = obj.get(propertyName);
+					
+					if (value == null || !value.toString().equals(startValue)) {
+						newDsObjectsCopy.remove(obj);
+					}
+				}
+			}
+
+			
 			else {
 				throw new Exception("Unknown filter selector: " + selector);
 			}

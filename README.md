@@ -13,10 +13,11 @@ available on the [Docushare Developer Network website](https://docushare.xerox.c
     DSSession dsSession = null;
 		
 	 try {
+	     // Create a DocuShare session
         dsServer = DSFactory.createServer(ds_serverName);
         dsSession = dsServer.createSession(ds_domain, ds_userName, ds_password);
         
-        // Retrieve the root collection
+        // Create a new DSJquery object and retrieve the root collection
         DSJQuery dsjQuery_rootCollection = new DSJQuery(dsSession)
             .find("#Collection-111")
             .print();
@@ -33,6 +34,7 @@ available on the [Docushare Developer Network website](https://docushare.xerox.c
         e.printStackTrace();
     }
     finally {
+        // Close the DocuShare session
         try {
             dsSession.close();
             dsServer.close();
@@ -41,3 +43,17 @@ available on the [Docushare Developer Network website](https://docushare.xerox.c
             // ignore
         }
     }
+
+## Sample Selectors
+
+**Retrieve all documents under known collection.**
+
+    DSJQuery dsjQuery_documents = new DSJQuery(dsSession)
+        .find("#Collection-111")
+        .find(".Document");
+    
+**Retrieve all documents with the word 'Logo' in the title.**
+
+    DSJQuery dsjQuery_documents = new DSJQuery(dsSession)
+        .find(".Document")
+        .filter("[title~='Logo']")
