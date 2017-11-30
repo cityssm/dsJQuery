@@ -1,4 +1,5 @@
 # dsJQuery
+
 DocuShare jQuery
 
 An attempt to simplify the Xerox DocuShare API by emulating the familiar jQuery API.
@@ -14,29 +15,29 @@ available on the [Docushare Developer Network website](https://docushare.xerox.c
 	 try {
         dsServer = DSFactory.createServer(ds_serverName);
         dsSession = dsServer.createSession(ds_domain, ds_userName, ds_password);
-
+        
         // Retrieve the root collection
         DSJQuery dsjQuery_rootCollection = new DSJQuery(dsSession)
             .find("#Collection-111")
             .print();
-
+        
         // Retrieve all documents under the root collection
         DSJQuery dsjQuery_documents = dsjQuery_rootCollection.find(".Document");
-
+        
         dsjQuery_documents
             .print()
             .sortAsc_byAttribute("title")
             .print();	
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-		}
-		finally {
-			try {
-				dsSession.close();
-				dsServer.close();
-			}
-			catch (Exception e) {
-				// ignore
-			}
-		}
+    }
+    catch (Exception e) {
+        e.printStackTrace();
+    }
+    finally {
+        try {
+            dsSession.close();
+            dsServer.close();
+        }
+        catch (Exception e) {
+            // ignore
+        }
+    }
