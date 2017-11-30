@@ -25,9 +25,7 @@ try {
     DSJQuery.sessionSetup(dsSession);
     
     // Create a new DSJquery object and retrieve the root collection
-    DSJQuery dsjQuery_rootCollection = new DSJQuery()
-        .find("#Collection-111")
-        .print();
+    DSJQuery dsjQuery_rootCollection = new DSJQuery("#Collection-111");
     
     // Retrieve all documents under the root collection
     DSJQuery dsjQuery_documents = dsjQuery_rootCollection.find(".Document");
@@ -87,15 +85,11 @@ Reduces the set of matched objects to those that match the selector.
 **Retrieve all documents under known collection.**
 
 ```java
-DSJQuery dsjQuery_documents = new DSJQuery()
-    .find("#Collection-111")
-    .find(".Document");
+DSJQuery dsjQuery_documents = new DSJQuery("#Collection-111").find(".Document");
 ```
     
 **Retrieve all documents with the word 'Logo' in the title.**
 
 ```java
-DSJQuery dsjQuery_documents = new DSJQuery()
-    .find(".Document")
-    .filter("[title~='Logo']");
+DSJQuery dsjQuery_documents = new DSJQuery(".Document").filter("[title~='Logo']");
 ```

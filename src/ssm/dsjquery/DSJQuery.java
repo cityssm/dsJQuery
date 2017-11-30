@@ -46,6 +46,12 @@ public class DSJQuery {
 	}
 	
 	
+	public DSJQuery(String findSelector) throws Exception {
+		this();
+		dsObjects = find(findSelector).dsObjects;
+	}
+	
+	
 	private DSJQuery(List<DSObject> dsObjects) {
 		this();
 		this.dsObjects = dsObjects;
@@ -172,9 +178,11 @@ public class DSJQuery {
 	 * Searches beneath all currently selected collections for documents and collections.
 	 * @param selector
 	 * @return
+	 * @throws DSException 
+	 * @throws DSInvalidLicenseException 
 	 * @throws Exception
 	 */
-	public DSJQuery find (String selector) throws Exception {
+	public DSJQuery find (String selector) throws DSInvalidLicenseException, DSException {
 
 		/*
 		 * If selectorToken is *, retrieve all child elements
