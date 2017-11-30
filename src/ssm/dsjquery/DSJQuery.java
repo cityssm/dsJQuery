@@ -118,7 +118,7 @@ public class DSJQuery {
 	}
 	
 	
-	public DSJQuery find_byClassName (String className) throws DSException {
+	public DSJQuery find_byClassName (String className) throws DSInvalidLicenseException, DSException {
 		
 		List<DSObject> newDsObjects = new LinkedList<DSObject>();
 		
@@ -490,6 +490,27 @@ public class DSJQuery {
 	}
 
 	
+	/**
+	 * Returns the total number of DSObjects in the DSJquery object.
+	 * @return
+	 */
+	public int length() {
+		if (dsObjects == null) {
+			return 0;
+		}
+		
+		return dsObjects.size();
+	}
+	
+	
+	/**
+	 * Similar to $().toArray(), returns the List of DSObjects.
+	 * @return
+	 */
+	public List<DSObject> toList() {
+		return dsObjects;
+	}
+		
 	
 	
 	public DSJQuery print() throws DSException {
