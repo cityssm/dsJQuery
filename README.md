@@ -71,13 +71,13 @@ Searches beneath all collections for objects the match the given selector.
 Reduces the set of matched objects to those that match the selector.
 
 - Use `.` to filter by class.  i.e. `.Collection`, `.Document`
-- Use `[name='value']` to filter those objects with properties equal to a given value.
+- Use `[name='value']` to filter those objects with attributes equal to a given value.
   - i.e. `[locale='en']`
-- Use `[name^='value']` to filter those objects with properties starting with a given value.
+- Use `[name^='value']` to filter those objects with attributes starting with a given value.
   - i.e. `[content_type^='image/']`
-- Use `[name$='value']` to filter those objects with properties ending with a given value.
+- Use `[name$='value']` to filter those objects with attributes ending with a given value.
   - i.e. `[original_file_name$='.docx']`
-- Use `[name~='value']` to filter those objects with properties containing a given value.
+- Use `[name~='value']` to filter those objects with attributes containing a given value.
   - i.e. `[keywords~='logo']`
 
 ## Samples Selectors
@@ -88,8 +88,12 @@ Reduces the set of matched objects to those that match the selector.
 DSJQuery dsjQuery_documents = new DSJQuery("#Collection-111").find(".Document");
 ```
     
-**Retrieve all documents with the word 'Logo' in the title.**
+**Retrieve all PNG documents with the word 'Logo' in the title sorted with the newer files first.**
 
 ```java
-DSJQuery dsjQuery_documents = new DSJQuery(".Document").filter("[title~='Logo']");
+DSJQuery dsjQuery_documents = new DSJQuery(".Document")
+    .filter("[title~='Logo']")
+    .filter("[content_type='image/png']")
+    .sortAsc_byAttribute("create_date")
+    .reverse();
 ```
