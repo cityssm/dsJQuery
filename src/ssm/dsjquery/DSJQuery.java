@@ -6,12 +6,10 @@ import java.util.LinkedList;
 import java.util.List;
 
 import com.xerox.docushare.DSException;
-import com.xerox.docushare.DSFactory;
 import com.xerox.docushare.DSHandle;
 import com.xerox.docushare.DSInvalidLicenseException;
 import com.xerox.docushare.DSObject;
 import com.xerox.docushare.DSResultIterator;
-import com.xerox.docushare.DSServer;
 import com.xerox.docushare.DSSession;
 import com.xerox.docushare.db.DatabaseException;
 import com.xerox.docushare.object.DSCollection;
@@ -26,45 +24,8 @@ import com.xerox.docushare.query.DSQuery;
  */
 public class DSJQuery {
 
-	public static String DEFAULT_SERVER_HOST     = "127.0.0.1";
-	public static int    DEFAULT_SERVER_RMI_PORT = 1099;
-	
-	public static String DEFAULT_USER_DOMAIN   = "DocuShare";
-	public static String DEFAULT_USER_USERNAME = "admin";
-	public static String DEFAULT_USER_PASSWORD = "admin";
-	
-	private DSServer  SERVER;
 	private DSSession SESSION;
-	private boolean   SESSION_IS_CONNECTED = false;
-	
 	private List<DSObject> dsObjects = null;
-	
-	
-	/**
-	 * Connect to a DocuShare server using the default connection information.
-	 * @throws DSException
-	 */
-	public DSJQuery() throws DSException {
-		SERVER  = DSFactory.createServer(DEFAULT_SERVER_HOST, DEFAULT_SERVER_RMI_PORT);
-		SESSION = SERVER.createSession(DEFAULT_USER_DOMAIN, DEFAULT_USER_USERNAME, DEFAULT_USER_PASSWORD);
-		SESSION_IS_CONNECTED = true;
-	}
-	
-	
-	/**
-	 * Connect to a DocuShare server using provided connection information.
-	 * @param host
-	 * @param rmiPort
-	 * @param domain
-	 * @param userName
-	 * @param password
-	 * @throws DSException
-	 */
-	public DSJQuery(String host, int rmiPort, String domain, String userName, String password) throws DSException {
-		SERVER =  DSFactory.createServer(host, rmiPort);
-		SESSION = SERVER.createSession(domain, userName, password);
-		SESSION_IS_CONNECTED = true;
-	}
 	
 	
 	/**
@@ -73,14 +34,11 @@ public class DSJQuery {
 	 */
 	public DSJQuery(DSSession session) {
 		SESSION = session;
-		SESSION_IS_CONNECTED = true;
 	}
 	
 	
 	public DSJQuery(DSSession session, List<DSObject> dsObjects) {
-		SESSION = session;
-		SESSION_IS_CONNECTED = true;
-		
+		this(session);
 		this.dsObjects = dsObjects;
 	}
 	
@@ -543,34 +501,4 @@ public class DSJQuery {
 		
 		return this;
 	}
-	
-	/**
-	 * Closes Docushare session and server connection.
-	 * Should be called when done.
-	 */
-	public void close() {
-		
-		if (SESSION != null) {
-			try {
-				SESSION.close();
-			}
-			catch (Exception e) {
-				// ignore
-			}
-			SESSION = null;
-		}
-		
-		if (SERVER != null) {
-			try {
-				SERVER.close();
-			}
-			catch (Exception e) {
-				// ignore
-			}
-			SERVER = null;
-		}
-		
-		SESSION_IS_CONNECTED = false;
-	}
-
 }
