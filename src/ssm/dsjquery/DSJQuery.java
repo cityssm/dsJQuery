@@ -24,21 +24,30 @@ import com.xerox.docushare.query.DSQuery;
  */
 public class DSJQuery {
 
-	private DSSession SESSION;
-	private List<DSObject> dsObjects = null;
+	private static DSSession SESSION = null;
 	
 	
 	/**
-	 * Connect to a DocuShare server using an existing session.
-	 * @param session
+	 * Sets the DSSession object to be used for queries.
+	 * @param dsSession
 	 */
-	public DSJQuery(DSSession session) {
-		SESSION = session;
+	public static void sessionSetup(DSSession dsSession) {
+		SESSION = dsSession;
 	}
 	
 	
-	public DSJQuery(DSSession session, List<DSObject> dsObjects) {
-		this(session);
+	private List<DSObject> dsObjects = null;
+	
+	
+	public DSJQuery() {
+		if (SESSION == null) {
+			throw new NullPointerException("No DocuShare session available. Set using DSJQuery.sessionSetup();");
+		}
+	}
+	
+	
+	private DSJQuery(List<DSObject> dsObjects) {
+		this();
 		this.dsObjects = dsObjects;
 	}
 	
@@ -77,7 +86,7 @@ public class DSJQuery {
 			}
 		}
 		
-		return new DSJQuery(SESSION, newDsObjects);
+		return new DSJQuery(newDsObjects);
 	}
 
 	
@@ -114,7 +123,7 @@ public class DSJQuery {
 			}
 		}
 		
-		return new DSJQuery(SESSION, newDsObjects);
+		return new DSJQuery(newDsObjects);
 	}
 	
 	
@@ -155,8 +164,9 @@ public class DSJQuery {
 			}
 		}
 		
-		return new DSJQuery(SESSION, newDsObjects);
+		return new DSJQuery(newDsObjects);
 	}
+	
 	
 	/**
 	 * Searches beneath all currently selected collections for documents and collections.
@@ -194,7 +204,7 @@ public class DSJQuery {
 			return find_byClassName(className);	
 		}
 		
-		return new DSJQuery(SESSION, new LinkedList<DSObject>());
+		return new DSJQuery(new LinkedList<DSObject>());
 	}
 	
 	
@@ -213,10 +223,10 @@ public class DSJQuery {
 		 */
 		
 		if (dsObjects == null)
-			return new DSJQuery(SESSION);
+			return new DSJQuery();
 		
 		if (dsObjects.size() == 0) {
-			return new DSJQuery(SESSION, new LinkedList<DSObject>());
+			return new DSJQuery(new LinkedList<DSObject>());
 		}
 			
 		List<DSObject> newDsObjects = new LinkedList<DSObject>(dsObjects);
@@ -312,7 +322,7 @@ public class DSJQuery {
 			throw new Exception("Unknown filter selector: " + selector);
 		}
 		
-		return new DSJQuery(SESSION, newDsObjectsCopy);
+		return new DSJQuery(newDsObjectsCopy);
 	}
 
 	
@@ -324,17 +334,17 @@ public class DSJQuery {
 	public DSJQuery sort (Comparator<DSObject> comparator) {
 		
 		if (dsObjects == null)
-			return new DSJQuery(SESSION);
+			return new DSJQuery();
 		
 		if (dsObjects.size() == 0) {
-			return new DSJQuery(SESSION, new LinkedList<DSObject>());
+			return new DSJQuery(new LinkedList<DSObject>());
 		}
 			
 		List<DSObject> newDsObjects = new LinkedList<DSObject>(dsObjects);
 
 		newDsObjects.sort(comparator);
 		
-		return new DSJQuery(SESSION, newDsObjects);
+		return new DSJQuery(newDsObjects);
 	}
 	
 	
@@ -399,13 +409,13 @@ public class DSJQuery {
 	public DSJQuery reverse() {
 		
 		if (dsObjects == null)
-			return new DSJQuery(SESSION);
+			return new DSJQuery();
 		
 		List<DSObject> newObjectList = new LinkedList<>(dsObjects);
 		
 		Collections.reverse(newObjectList);
 		
-		return new DSJQuery(SESSION, newObjectList);
+		return new DSJQuery(newObjectList);
 	}
 	
 	
@@ -454,7 +464,7 @@ public class DSJQuery {
 	 * Creates a new DSJQuery object with the same set of matching objects.
 	 */
 	public DSJQuery clone() {
-		return new DSJQuery(SESSION, new LinkedList<DSObject>(dsObjects));
+		return new DSJQuery(new LinkedList<DSObject>(dsObjects));
 	}
 	
 	
@@ -513,7 +523,11 @@ public class DSJQuery {
 	}
 		
 	
-	
+	/**
+	 * For debug purposes, outputs the handles and titles of objects currently the DSJQuery object.
+	 * @return
+	 * @throws DSException
+	 */
 	public DSJQuery print() throws DSException {
 		
 		for (DSObject obj : dsObjects) {
