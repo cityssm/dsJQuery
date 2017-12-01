@@ -5,6 +5,7 @@ import java.util.Comparator;
 import java.util.LinkedList;
 import java.util.List;
 
+import com.xerox.docushare.DSAuthorizationException;
 import com.xerox.docushare.DSException;
 import com.xerox.docushare.DSHandle;
 import com.xerox.docushare.DSInvalidLicenseException;
@@ -216,6 +217,136 @@ public class DSJQuery {
 	}
 	
 	
+	public DSJQuery filter_byAttribute_startsWith (String attributeName, String attributeValue, boolean ignoreCase) throws DSAuthorizationException, DSException {
+				
+		List<DSObject> newDsObjects = new LinkedList<DSObject>();	
+		
+		String attributeValueForCompare = (ignoreCase ? attributeValue.toLowerCase() : attributeValue);
+
+		for (DSObject obj : dsObjects) {
+			
+			Object value = obj.get(attributeName);
+			
+			if (value != null) {
+
+				String stringValue = value.toString();
+				
+				if (ignoreCase) {
+					stringValue = stringValue.toLowerCase();
+				}
+				
+				if (stringValue.startsWith(attributeValueForCompare)) {
+					newDsObjects.add(obj);
+				}
+			}
+		}
+		
+		return new DSJQuery(newDsObjects);
+	}
+	
+	
+	public DSJQuery filter_byAttribute_endsWith (String attributeName, String attributeValue, boolean ignoreCase) throws DSAuthorizationException, DSException {
+		
+		List<DSObject> newDsObjects = new LinkedList<DSObject>();
+		
+		String attributeValueForCompare = (ignoreCase ? attributeValue.toLowerCase() : attributeValue);
+		
+		for (DSObject obj : dsObjects) {
+			
+			Object value = obj.get(attributeName);
+
+			if (value != null) {
+
+				String stringValue = value.toString();
+				
+				if (ignoreCase) {
+					stringValue = stringValue.toLowerCase();
+				}
+				
+				if (stringValue.endsWith(attributeValueForCompare)) {
+					newDsObjects.add(obj);
+				}
+			}
+		}
+		
+		return new DSJQuery(newDsObjects);
+	}
+	
+	
+	public DSJQuery filter_byAttribute_contains (String attributeName, String attributeValue, boolean ignoreCase) throws DSAuthorizationException, DSException {
+		
+		List<DSObject> newDsObjects = new LinkedList<DSObject>();
+		
+		String attributeValueForCompare = (ignoreCase ? attributeValue.toLowerCase() : attributeValue);
+		
+		for (DSObject obj : dsObjects) {
+			
+			Object value = obj.get(attributeName);
+
+			if (value != null) {
+
+				String stringValue = value.toString();
+				
+				if (ignoreCase) {
+					stringValue = stringValue.toLowerCase();
+				}
+				
+				if (stringValue.contains(attributeValueForCompare)) {
+					newDsObjects.add(obj);
+				}
+			}
+		}
+		
+		return new DSJQuery(newDsObjects);
+	}
+	
+	
+	public DSJQuery filter_byAttribute_equals (String attributeName, String attributeValue, boolean ignoreCase) throws DSAuthorizationException, DSException {
+		
+		List<DSObject> newDsObjects = new LinkedList<DSObject>();
+		
+		String attributeValueForCompare = (ignoreCase ? attributeValue.toLowerCase() : attributeValue);
+		
+		for (DSObject obj : dsObjects) {
+			
+			Object value = obj.get(attributeName);
+			
+			if (value != null) {
+
+				String stringValue = value.toString();
+				
+				if (ignoreCase) {
+					stringValue = stringValue.toLowerCase();
+				}
+				
+				if (stringValue.equals(attributeValueForCompare)) {
+					newDsObjects.add(obj);
+				}
+			}
+		}
+		
+		return new DSJQuery(newDsObjects);
+	}
+	
+	
+	public DSJQuery filter_byClassName (String className) throws DSException {
+		
+		List<DSObject> newDsObjects = new LinkedList<DSObject>(dsObjects);
+		List<DSObject> newDsObjectsCopy = new LinkedList<DSObject>(dsObjects);
+		
+		for (DSObject obj : newDsObjects) {
+			
+			String objClassName = obj.getDSClass().getName();
+			
+			if (!objClassName.equals(className)) {
+				newDsObjectsCopy.remove(obj);
+			}
+		}
+		
+		return new DSJQuery(newDsObjectsCopy);
+	}
+	
+	
 	/**
 	 * Filters the current set of documents and collections using a selector.
 	 * @param selector
@@ -237,88 +368,46 @@ public class DSJQuery {
 			return new DSJQuery(new LinkedList<DSObject>());
 		}
 			
-		List<DSObject> newDsObjects = new LinkedList<DSObject>(dsObjects);
-		List<DSObject> newDsObjectsCopy = new LinkedList<DSObject>(dsObjects);
 		
 		if (selector.startsWith(".")) {
 			
 			String filterClassName = selector.substring(1);
-
-			for (DSObject obj : newDsObjects) {
-				
-				String objClassName = obj.getDSClass().getName();
-				
-				if (!objClassName.equals(filterClassName)) {
-					newDsObjectsCopy.remove(obj);
-				}
-			}
+			return filter_byClassName(filterClassName);
 		}
 		else if (selector.startsWith("[")) {
 			
 			// starts with
 			if (selector.contains("^=")) {
 				
-				String propertyName = selector.substring(1, selector.indexOf("^="));
+				String attributeName = selector.substring(1, selector.indexOf("^="));
+				String attributeValue = selector.substring(selector.indexOf("^=") + 3, selector.length() - 2);
 				
-				String startValue = selector.substring(selector.indexOf("^=") + 3, selector.length() - 2);
-				
-				for (DSObject obj : newDsObjects) {
-	
-					Object value = obj.get(propertyName);
-					
-					if (value == null || !value.toString().startsWith(startValue)) {
-						newDsObjectsCopy.remove(obj);
-					}
-				}
+				return filter_byAttribute_startsWith(attributeName, attributeValue, false);
 			}
 			
 			// ends with
 			else if (selector.contains("$=")) {
 					
-				String propertyName = selector.substring(1, selector.indexOf("$="));
+				String attributeName = selector.substring(1, selector.indexOf("$="));
+				String attributeValue = selector.substring(selector.indexOf("$=") + 3, selector.length() - 2);
 				
-				String startValue = selector.substring(selector.indexOf("$=") + 3, selector.length() - 2);
-				
-				for (DSObject obj : newDsObjects) {
-	
-					Object value = obj.get(propertyName);
-	
-					if (value == null || !value.toString().endsWith(startValue)) {
-						newDsObjectsCopy.remove(obj);
-					}
-				}
+				return filter_byAttribute_endsWith(attributeName, attributeValue, false);
 			}
 			
 			// contains
 			else if (selector.contains("~=")) {
 					
-				String propertyName = selector.substring(1, selector.indexOf("~="));
+				String attributeName = selector.substring(1, selector.indexOf("~="));
+				String attributeValue = selector.substring(selector.indexOf("~=") + 3, selector.length() - 2);
 				
-				String startValue = selector.substring(selector.indexOf("~=") + 3, selector.length() - 2);
-				
-				for (DSObject obj : newDsObjects) {
-	
-					Object value = obj.get(propertyName);
-	
-					if (value == null || !value.toString().contains(startValue)) {
-						newDsObjectsCopy.remove(obj);
-					}
-				}
+				return filter_byAttribute_contains(attributeName, attributeValue, false);
 			}
 			else if (selector.contains("=")) {
 				
-				String propertyName = selector.substring(1, selector.indexOf("="));
+				String attributeName = selector.substring(1, selector.indexOf("="));
+				String attributeValue = selector.substring(selector.indexOf("=") + 2, selector.length() - 2);
 				
-				String startValue = selector.substring(selector.indexOf("=") + 2, selector.length() - 2);
-				
-				for (DSObject obj : newDsObjects) {
-	
-					Object value = obj.get(propertyName);
-					
-					if (value == null || !value.toString().equals(startValue)) {
-						newDsObjectsCopy.remove(obj);
-					}
-				}
+				return filter_byAttribute_equals(attributeName, attributeValue, false);
 			}
 
 			
@@ -329,8 +418,6 @@ public class DSJQuery {
 		else {
 			throw new Exception("Unknown filter selector: " + selector);
 		}
-		
-		return new DSJQuery(newDsObjectsCopy);
 	}
 
 	
