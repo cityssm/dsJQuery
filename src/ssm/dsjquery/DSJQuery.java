@@ -10,12 +10,15 @@ import com.xerox.docushare.DSException;
 import com.xerox.docushare.DSHandle;
 import com.xerox.docushare.DSInvalidLicenseException;
 import com.xerox.docushare.DSObject;
+import com.xerox.docushare.DSObjectIterator;
 import com.xerox.docushare.DSResultIterator;
 import com.xerox.docushare.DSSession;
 import com.xerox.docushare.db.DatabaseException;
 import com.xerox.docushare.object.DSCollection;
 import com.xerox.docushare.query.DSCollectionScope;
 import com.xerox.docushare.query.DSQuery;
+
+import ssm.dsjquery.DSJQueryException.DSJQueryFilterException;
 
 /**
  * <b>DSJQuery - DocuShare jQuery</b><br />
@@ -217,6 +220,44 @@ public class DSJQuery {
 	}
 	
 	
+	/**
+	 * Retrieves the immediate descendants for all selected collections. 
+	 * @return
+	 * @throws DSInvalidLicenseException
+	 * @throws DSException
+	 */
+	public DSJQuery children () throws DSInvalidLicenseException, DSException {
+		
+		List<DSObject> newDsObjects = new LinkedList<DSObject>();
+		
+		if (dsObjects == null) {
+			return new DSJQuery(new LinkedList<DSObject>());			
+		}
+		else {
+			
+			for (DSObject parentObj : dsObjects) {
+				
+				if (parentObj instanceof DSCollection) {
+					
+					DSObjectIterator iterator = ((DSCollection) parentObj).children(null);
+
+					while (iterator.hasNext()) {
+						DSObject item = iterator.nextObject();
+						newDsObjects.add(item);
+					}
+				}
+			}
+		}
+		
+		return new DSJQuery(newDsObjects);
+	}
+
+	
+	public DSJQuery children (String filterSelector) throws DSInvalidLicenseException, DSException, DSJQueryFilterException {
+		return children().filter(filterSelector);
+	}
+	
+	
 	public DSJQuery filter_byAttribute_startsWith (String attributeName, String attributeValue, boolean ignoreCase) throws DSAuthorizationException, DSException {
 				
 		List<DSObject> newDsObjects = new LinkedList<DSObject>();	
@@ -352,9 +393,9 @@ public class DSJQuery {
 	 * @param selector
 	 * @return
 	 * @throws DSException
-	 * @throws Exception
+	 * @throws DSJQueryFilterException 
 	 */
-	public DSJQuery filter (String selector) throws DSException, Exception {
+	public DSJQuery filter (String selector) throws DSException, DSJQueryFilterException {
 		
 		/*
 		 * For a filter to work, we must have some objects.
@@ -412,11 +453,11 @@ public class DSJQuery {
 
 			
 			else {
-				throw new Exception("Unknown filter selector: " + selector);
+				throw new DSJQueryException.DSJQueryFilterException(selector);
 			}
 		}
 		else {
-			throw new Exception("Unknown filter selector: " + selector);
+			throw new DSJQueryException.DSJQueryFilterException(selector);
 		}
 	}
 
