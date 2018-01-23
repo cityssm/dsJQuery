@@ -1,5 +1,6 @@
 package ssm.dsjquery;
 
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.LinkedList;
@@ -59,6 +60,13 @@ public class DSJQuery {
 	private DSJQuery(List<DSObject> dsObjects) {
 		this();
 		this.dsObjects = dsObjects;
+	}
+	
+	
+	private DSJQuery(DSObject dsObject) {
+		this();
+		dsObjects = new LinkedList<>();
+		dsObjects.add(dsObject);
 	}
 	
 	
@@ -253,6 +261,12 @@ public class DSJQuery {
 	}
 
 	
+	/**
+	 * Retrieves the immediate descendants for all selected collections which satisfy a given filter. 
+	 * @return
+	 * @throws DSInvalidLicenseException
+	 * @throws DSException
+	 */
 	public DSJQuery children (String filterSelector) throws DSInvalidLicenseException, DSException, DSJQueryFilterException {
 		return children().filter(filterSelector);
 	}
@@ -406,7 +420,7 @@ public class DSJQuery {
 			return new DSJQuery();
 		
 		if (dsObjects.size() == 0) {
-			return new DSJQuery(new LinkedList<DSObject>());
+			return new DSJQuery(new LinkedList<>());
 		}
 			
 		
@@ -463,6 +477,18 @@ public class DSJQuery {
 
 	
 	/**
+	 * Filters the current set of documents and collections to only include the first one.
+	 * @return
+	 */
+	public DSJQuery first () {
+		if (dsObjects.size() > 0) {
+			return new DSJQuery(dsObjects.get(0));
+		}
+		return new DSJQuery(new LinkedList<>());
+	}
+	
+	
+	/**
 	 * Sorts the current set of objects using a Comparator.
 	 * @param comparator
 	 * @return
@@ -476,7 +502,7 @@ public class DSJQuery {
 			return new DSJQuery(new LinkedList<DSObject>());
 		}
 			
-		List<DSObject> newDsObjects = new LinkedList<DSObject>(dsObjects);
+		List<DSObject> newDsObjects = new LinkedList<>(dsObjects);
 
 		newDsObjects.sort(comparator);
 		
@@ -597,10 +623,78 @@ public class DSJQuery {
 	
 	
 	/**
+	 * Adds a new keyword to the keyword list if the keyword is not already part of the list.
+	 * @param keywordToAdd
+	 * @return
+	 * @throws DSAuthorizationException
+	 * @throws DSException
+	 */
+	public DSJQuery addKeyword (String keywordToAdd) throws DSAuthorizationException, DSException {
+		
+		if (dsObjects == null)
+			return this;
+		
+		for (DSObject obj : dsObjects) {
+			
+			boolean keywordFound = false;
+			String[] currentKeywords = obj.getKeywords().split(",");
+			
+			for (String keyword : currentKeywords) {
+				if (keyword.trim().equals(keywordToAdd)) {
+					keywordFound = true;
+					break;
+				}
+			}
+			
+			if (!keywordFound) {
+				obj.setKeywords(obj.getKeywords() + (currentKeywords.length > 0 ? ", " : "") + keywordToAdd);
+				obj.save();
+			}
+		}
+		
+		return this;
+	}
+	
+	
+	/**
+	 * Removes the first instance of a keyword from the keyword list if it is found. 
+	 * @param keywordToRemove
+	 * @return
+	 * @throws DSAuthorizationException
+	 * @throws DSException
+	 */
+	public DSJQuery removeKeyword (String keywordToRemove) throws DSAuthorizationException, DSException {
+		
+		if (dsObjects == null)
+			return this;
+		
+		for (DSObject obj : dsObjects) {
+
+			String[] currentKeywords = obj.getKeywords().split(",");
+			
+			for (String keyword : currentKeywords) {
+				if (keyword.trim().equals(keywordToRemove)) {
+					
+					List<String> newKeywordsList = new LinkedList<>(Arrays.asList(currentKeywords));
+					newKeywordsList.remove(keyword);
+					
+					obj.setKeywords(String.join(", ", newKeywordsList));
+					obj.save();
+					
+					break;
+				}
+			}
+		}
+		
+		return this;
+	}
+	
+	
+	/**
 	 * Creates a new DSJQuery object with the same set of matching objects.
 	 */
 	public DSJQuery clone() {
-		return new DSJQuery(new LinkedList<DSObject>(dsObjects));
+		return new DSJQuery(new LinkedList<>(dsObjects));
 	}
 	
 	
