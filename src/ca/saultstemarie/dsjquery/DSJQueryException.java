@@ -12,12 +12,12 @@ public class DSJQueryException extends Exception {
 		super(message);
 	}
 
-	public static class DSJQueryFilterException extends DSJQueryException {
+	public static class DSJQuerySelectorException extends DSJQueryException {
 
 		private static final long serialVersionUID = 3181053289405098940L;
 
-		public DSJQueryFilterException(String filter) {
-			super(filter);
+		public DSJQuerySelectorException(String selector) {
+			super(selector);
 		}
 	}
 }

@@ -19,13 +19,15 @@ import com.xerox.docushare.object.DSCollection;
 import com.xerox.docushare.query.DSCollectionScope;
 import com.xerox.docushare.query.DSQuery;
 
-import ca.saultstemarie.dsjquery.DSJQueryException.DSJQueryFilterException;
+import ca.saultstemarie.dsjquery.DSJQueryException.DSJQuerySelectorException;
 
 /**
- * <b>DSJQuery - DocuShare jQuery</b><br />
+ * <b>DSJQuery - DocuShare jQuery</b>
  * A DocuShare object query library similar to jQuery.
+ * 
  * @author d.gowans
- *
+ * 
+ * @see <a href="https://github.com/cityssm/dsJQuery">dsJQuery on GitHub</a>
  */
 public class DSJQuery {
 
@@ -34,7 +36,9 @@ public class DSJQuery {
 	
 	/**
 	 * Sets the DSSession object to be used for queries.
-	 * @param dsSession
+	 * @category SETUP
+	 * 
+	 * @param dsSession An active session with a DocuShare server.
 	 */
 	public static void sessionSetup(DSSession dsSession) {
 		SESSION = dsSession;
@@ -44,6 +48,13 @@ public class DSJQuery {
 	private List<DSObject> dsObjects = null;
 	
 	
+	/**
+	 * Creates a new DSJQuery object at the root of the DocuShare library.
+	 * It contains no DSObjects, but in it's state, and DSObject in the library can be selected.
+	 * @category CORE
+	 * 
+	 *  @see <a href="https://api.jquery.com/jQuery/">jQuery() | jQuery API</a>
+	 */
 	public DSJQuery() {
 		if (SESSION == null) {
 			throw new NullPointerException("No DocuShare session available. Set using DSJQuery.sessionSetup();");
@@ -51,7 +62,16 @@ public class DSJQuery {
 	}
 	
 	
-	public DSJQuery(String findSelector) throws Exception {
+	/**
+	 * Creates a new DSJQuery object with DSObjects that match the given filter.
+	 * @category CORE
+	 * 
+	 * @param findSelector
+	 * @throws DSJQuerySelectorException 
+	 * @throws DSException 
+	 * @throws DSInvalidLicenseException 
+	 */
+	public DSJQuery(String findSelector) throws DSInvalidLicenseException, DSException, DSJQuerySelectorException {
 		this();
 		dsObjects = find(findSelector).dsObjects;
 	}
@@ -160,7 +180,6 @@ public class DSJQuery {
 				DSObject item = result.nextObject().getObject();
 				newDsObjects.add(item);
 			}
-			
 		}
 		else {
 			
@@ -188,13 +207,17 @@ public class DSJQuery {
 	
 	/**
 	 * Searches beneath all currently selected collections for documents and collections.
-	 * @param selector
-	 * @return
+	 * @category TRAVERSING
+	 * 
+	 * @param selector In jQuery-style, either * or starting with # or .
+	 * @return A new DSJquery object
 	 * @throws DSException 
 	 * @throws DSInvalidLicenseException 
-	 * @throws Exception
+	 * @throws DSJQuerySelectorException 
+	 * 
+	 * @see <a href="https://api.jquery.com/find/">find() | jQuery API</a>
 	 */
-	public DSJQuery find (String selector) throws DSInvalidLicenseException, DSException {
+	public DSJQuery find (String selector) throws DSInvalidLicenseException, DSException, DSJQuerySelectorException {
 
 		/*
 		 * If selectorToken is *, retrieve all child elements
@@ -211,8 +234,6 @@ public class DSJQuery {
 			
 			String handle = selector.substring(1);
 			return find_byHandle(handle);
-			
-			
 		}
 		
 		/*
@@ -224,15 +245,19 @@ public class DSJQuery {
 			return find_byClassName(className);	
 		}
 		
-		return new DSJQuery(new LinkedList<DSObject>());
+		throw new DSJQuerySelectorException(selector);
 	}
 	
 	
 	/**
 	 * Retrieves the immediate descendants for all selected collections. 
-	 * @return
+	 * @category TRAVERSING
+	 * 
+	 * @return A new DSJQuery object
 	 * @throws DSInvalidLicenseException
 	 * @throws DSException
+	 * 
+	 * @see <a href="https://api.jquery.com/children/">children() | jQuery API</a>
 	 */
 	public DSJQuery children () throws DSInvalidLicenseException, DSException {
 		
@@ -263,15 +288,20 @@ public class DSJQuery {
 	
 	/**
 	 * Retrieves the immediate descendants for all selected collections which satisfy a given filter. 
-	 * @return
+	 * @category TRAVERSING
+	 * 
+	 * @return A new DSJQuery object
 	 * @throws DSInvalidLicenseException
 	 * @throws DSException
+	 * @throws DSJQuerySelectorException
+	 * 
+	 * @see <a href="https://api.jquery.com/children/">children() | jQuery API</a>
 	 */
-	public DSJQuery children (String filterSelector) throws DSInvalidLicenseException, DSException, DSJQueryFilterException {
+	public DSJQuery children (String filterSelector) throws DSInvalidLicenseException, DSException, DSJQuerySelectorException {
 		return children().filter(filterSelector);
 	}
 	
-	
+		
 	public DSJQuery filter_byAttribute_startsWith (String attributeName, String attributeValue, boolean ignoreCase) throws DSAuthorizationException, DSException {
 				
 		List<DSObject> newDsObjects = new LinkedList<DSObject>();	
@@ -404,12 +434,16 @@ public class DSJQuery {
 	
 	/**
 	 * Filters the current set of documents and collections using a selector.
+	 * @category FILTERING
+	 * 
 	 * @param selector
-	 * @return
+	 * @return A new DSJquery object
 	 * @throws DSException
-	 * @throws DSJQueryFilterException 
+	 * @throws DSJQuerySelectorException
+	 * 
+	 * @see <a href="https://api.jquery.com/filter/">filter() | jQuery API</a>
 	 */
-	public DSJQuery filter (String selector) throws DSException, DSJQueryFilterException {
+	public DSJQuery filter (String selector) throws DSException, DSJQuerySelectorException {
 		
 		/*
 		 * For a filter to work, we must have some objects.
@@ -467,18 +501,22 @@ public class DSJQuery {
 
 			
 			else {
-				throw new DSJQueryException.DSJQueryFilterException(selector);
+				throw new DSJQuerySelectorException(selector);
 			}
 		}
 		else {
-			throw new DSJQueryException.DSJQueryFilterException(selector);
+			throw new DSJQuerySelectorException(selector);
 		}
 	}
 
 	
 	/**
 	 * Filters the current set of documents and collections to only include the first one.
-	 * @return
+	 * @category FILTERING
+	 * 
+	 * @return A new DSJquery object
+	 * 
+	 * @see <a href="https://api.jquery.com/first/">first() | jQuery API</a>
 	 */
 	public DSJQuery first () {
 		if (dsObjects.size() > 0) {
@@ -490,6 +528,8 @@ public class DSJQuery {
 	
 	/**
 	 * Sorts the current set of objects using a Comparator.
+	 * @category SORTING
+	 * 
 	 * @param comparator
 	 * @return
 	 */
@@ -512,8 +552,10 @@ public class DSJQuery {
 	
 	/**
 	 * Sorts the current set of objects in ascending order by an attribute.
+	 * @category SORTING
+	 * 
 	 * @param attributeName
-	 * @return
+	 * @return The current DSJQuery object
 	 * @throws DSException
 	 */
 	public DSJQuery sortAsc_byAttribute (String attributeName) throws DSException {
@@ -566,7 +608,9 @@ public class DSJQuery {
 	
 	/**
 	 * Reverses the order of the current set of objects.  Can be used to reorder a list in descending order after calling sortAsc.
-	 * @return
+	 * @category SORTING
+	 * 
+	 * @return A new DSJquery object
 	 */
 	public DSJQuery reverse() {
 		
@@ -583,9 +627,13 @@ public class DSJQuery {
 	
 	/**
 	 * Get the value of an attribute for the first element in the current set.
+	 * @category ATTRIBUTES
+	 * 
 	 * @param attributeName
-	 * @return
-	 * @throws DSException 
+	 * @return 
+	 * @throws DSException
+	 * 
+	 * @see <a href="https://api.jquery.com/attr/">attr() | jQuery API</a>
 	 */
 	public Object attr (String attributeName) throws DSException {
 		
@@ -603,10 +651,14 @@ public class DSJQuery {
 	
 	/**
 	 * Sets an attribute across all current elements.
+	 * @category ATTRIBUTES
+	 * 
 	 * @param attributeName
 	 * @param value
-	 * @return
+	 * @return The current DSJQuery object
 	 * @throws DSException
+	 * 
+	 * @see <a href="https://api.jquery.com/attr/">attr() | jQuery API</a>
 	 */
 	public DSJQuery attr (String attributeName, Object value) throws DSException {
 		
@@ -624,10 +676,14 @@ public class DSJQuery {
 	
 	/**
 	 * Adds a new keyword to the keyword list if the keyword is not already part of the list.
+	 * @category ATTRIBUTES
+	 * 
 	 * @param keywordToAdd
-	 * @return
+	 * @return The current DSJquery object
 	 * @throws DSAuthorizationException
 	 * @throws DSException
+	 * 
+	 * @see <a href="https://api.jquery.com/addClass/">addClass() | jQuery API</a>
 	 */
 	public DSJQuery addKeyword (String keywordToAdd) throws DSAuthorizationException, DSException {
 		
@@ -658,10 +714,14 @@ public class DSJQuery {
 	
 	/**
 	 * Removes the first instance of a keyword from the keyword list if it is found. 
+	 * @category ATTRIBUTES
+	 * 
 	 * @param keywordToRemove
-	 * @return
+	 * @return The current DSJQuery object
 	 * @throws DSAuthorizationException
 	 * @throws DSException
+	 * 
+	 * @see <a href="https://api.jquery.com/removeClass/">removeClass() | jQuery API</a>
 	 */
 	public DSJQuery removeKeyword (String keywordToRemove) throws DSAuthorizationException, DSException {
 		
@@ -692,6 +752,8 @@ public class DSJQuery {
 	
 	/**
 	 * Creates a new DSJQuery object with the same set of matching objects.
+	 * 
+	 * @see <a href="https://api.jquery.com/clone/">clone() | jQuery API</a>
 	 */
 	public DSJQuery clone() {
 		return new DSJQuery(new LinkedList<>(dsObjects));
@@ -700,9 +762,13 @@ public class DSJQuery {
 	
 	/**
 	 * Links all child elements under the current set of collections.
+	 * @category INSERTING
+	 * 
 	 * @param newChildren
-	 * @return
+	 * @return The current DSJquery object
 	 * @throws DSException
+	 * 
+	 * @see <a href="https://api.jquery.com/append/">append() | jQuery API</a>
 	 */
 	public DSJQuery append (DSJQuery newChildren) throws DSException {
 		
@@ -732,8 +798,11 @@ public class DSJQuery {
 
 	
 	/**
-	 * Returns the total number of DSObjects in the DSJquery object.
+	 * Returns the total number of DSObjects in the DSJQuery object.
+	 * 
 	 * @return
+	 * 
+	 * @see <a href="https://api.jquery.com/length/">length | jQuery API</a>
 	 */
 	public int length() {
 		if (dsObjects == null) {
@@ -746,7 +815,10 @@ public class DSJQuery {
 	
 	/**
 	 * Similar to $().toArray(), returns the List of DSObjects.
+	 * 
 	 * @return
+	 * 
+	 * @see <a href="https://api.jquery.com/toArray/">toArray() | jQuery API</a>
 	 */
 	public List<DSObject> toList() {
 		return dsObjects;
@@ -755,6 +827,7 @@ public class DSJQuery {
 	
 	/**
 	 * For debug purposes, outputs the handles and titles of objects currently the DSJQuery object.
+	 * 
 	 * @return
 	 * @throws DSException
 	 */
