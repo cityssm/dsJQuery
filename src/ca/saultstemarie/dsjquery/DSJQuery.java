@@ -3,6 +3,7 @@ package ca.saultstemarie.dsjquery;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -29,7 +30,7 @@ import ca.saultstemarie.dsjquery.DSJQueryException.DSJQuerySelectorException;
  * 
  * @see <a href="https://github.com/cityssm/dsJQuery">dsJQuery on GitHub</a>
  */
-public class DSJQuery {
+public class DSJQuery implements Iterable<DSObject> {
 
 	private static DSSession SESSION = null;
 	
@@ -51,13 +52,14 @@ public class DSJQuery {
 	/**
 	 * Creates a new DSJQuery object at the root of the DocuShare library.
 	 * It contains no DSObjects, but in it's state, and DSObject in the library can be selected.
+	 * @throws DSJQueryException 
 	 * @category CORE
 	 * 
 	 *  @see <a href="https://api.jquery.com/jQuery/">jQuery() | jQuery API</a>
 	 */
-	public DSJQuery() {
+	public DSJQuery() throws DSJQueryException {
 		if (SESSION == null) {
-			throw new NullPointerException("No DocuShare session available. Set using DSJQuery.sessionSetup();");
+			throw new DSJQueryException("No DocuShare session available. Set using DSJQuery.sessionSetup();");
 		}
 	}
 	
@@ -67,32 +69,32 @@ public class DSJQuery {
 	 * @category CORE
 	 * 
 	 * @param findSelector
-	 * @throws DSJQuerySelectorException 
 	 * @throws DSException 
 	 * @throws DSInvalidLicenseException 
+	 * @throws DSJQueryException 
 	 */
-	public DSJQuery(String findSelector) throws DSInvalidLicenseException, DSException, DSJQuerySelectorException {
+	public DSJQuery(String findSelector) throws DSInvalidLicenseException, DSException, DSJQueryException {
 		this();
 		dsObjects = find(findSelector).dsObjects;
 	}
 	
 	
-	private DSJQuery(List<DSObject> dsObjects) {
+	private DSJQuery(List<DSObject> dsObjects) throws DSJQueryException {
 		this();
 		this.dsObjects = dsObjects;
 	}
 	
 	
-	private DSJQuery(DSObject dsObject) {
+	private DSJQuery(DSObject dsObject) throws DSJQueryException {
 		this();
 		dsObjects = new LinkedList<>();
 		dsObjects.add(dsObject);
 	}
 	
 	
-	public DSJQuery find_all() throws DSInvalidLicenseException, DSException {
+	public DSJQuery find_all() throws DSInvalidLicenseException, DSException, DSJQueryException {
 		
-		List<DSObject> newDsObjects = new LinkedList<DSObject>();
+		List<DSObject> newDsObjects = new LinkedList<>();
 		
 		if (dsObjects == null) {
 			
@@ -128,9 +130,9 @@ public class DSJQuery {
 	}
 
 	
-	public DSJQuery find_byHandle (String handle) throws DSInvalidLicenseException, DSException {
+	public DSJQuery find_byHandle (String handle) throws DSInvalidLicenseException, DSException, DSJQueryException {
 		
-		List<DSObject> newDsObjects = new LinkedList<DSObject>();
+		List<DSObject> newDsObjects = new LinkedList<>();
 		
 		if (dsObjects == null) {
 			
@@ -165,9 +167,9 @@ public class DSJQuery {
 	}
 	
 	
-	public DSJQuery find_byClassName (String className) throws DSInvalidLicenseException, DSException {
+	public DSJQuery find_byClassName (String className) throws DSInvalidLicenseException, DSException, DSJQueryException {
 		
-		List<DSObject> newDsObjects = new LinkedList<DSObject>();
+		List<DSObject> newDsObjects = new LinkedList<>();
 		
 		if (dsObjects == null) {
 			
@@ -213,11 +215,10 @@ public class DSJQuery {
 	 * @return A new DSJquery object
 	 * @throws DSException 
 	 * @throws DSInvalidLicenseException 
-	 * @throws DSJQuerySelectorException 
-	 * 
+	 * @throws DSJQueryException 
 	 * @see <a href="https://api.jquery.com/find/">find() | jQuery API</a>
 	 */
-	public DSJQuery find (String selector) throws DSInvalidLicenseException, DSException, DSJQuerySelectorException {
+	public DSJQuery find (String selector) throws DSInvalidLicenseException, DSException, DSJQueryException {
 
 		/*
 		 * If selectorToken is *, retrieve all child elements
@@ -256,15 +257,16 @@ public class DSJQuery {
 	 * @return A new DSJQuery object
 	 * @throws DSInvalidLicenseException
 	 * @throws DSException
+	 * @throws DSJQueryException 
 	 * 
 	 * @see <a href="https://api.jquery.com/children/">children() | jQuery API</a>
 	 */
-	public DSJQuery children () throws DSInvalidLicenseException, DSException {
+	public DSJQuery children () throws DSInvalidLicenseException, DSException, DSJQueryException {
 		
-		List<DSObject> newDsObjects = new LinkedList<DSObject>();
+		List<DSObject> newDsObjects = new LinkedList<>();
 		
 		if (dsObjects == null) {
-			return new DSJQuery(new LinkedList<DSObject>());			
+			return new DSJQuery(new LinkedList<>());			
 		}
 		else {
 			
@@ -293,18 +295,17 @@ public class DSJQuery {
 	 * @return A new DSJQuery object
 	 * @throws DSInvalidLicenseException
 	 * @throws DSException
-	 * @throws DSJQuerySelectorException
-	 * 
+	 * @throws DSJQueryException 
 	 * @see <a href="https://api.jquery.com/children/">children() | jQuery API</a>
 	 */
-	public DSJQuery children (String filterSelector) throws DSInvalidLicenseException, DSException, DSJQuerySelectorException {
+	public DSJQuery children (String filterSelector) throws DSInvalidLicenseException, DSException, DSJQueryException {
 		return children().filter(filterSelector);
 	}
 	
 		
-	public DSJQuery filter_byAttribute_startsWith (String attributeName, String attributeValue, boolean ignoreCase) throws DSAuthorizationException, DSException {
+	public DSJQuery filter_byAttribute_startsWith (String attributeName, String attributeValue, boolean ignoreCase) throws DSAuthorizationException, DSException, DSJQueryException {
 				
-		List<DSObject> newDsObjects = new LinkedList<DSObject>();	
+		List<DSObject> newDsObjects = new LinkedList<>();	
 		
 		String attributeValueForCompare = (ignoreCase ? attributeValue.toLowerCase() : attributeValue);
 
@@ -330,9 +331,9 @@ public class DSJQuery {
 	}
 	
 	
-	public DSJQuery filter_byAttribute_endsWith (String attributeName, String attributeValue, boolean ignoreCase) throws DSAuthorizationException, DSException {
+	public DSJQuery filter_byAttribute_endsWith (String attributeName, String attributeValue, boolean ignoreCase) throws DSAuthorizationException, DSException, DSJQueryException {
 		
-		List<DSObject> newDsObjects = new LinkedList<DSObject>();
+		List<DSObject> newDsObjects = new LinkedList<>();
 		
 		String attributeValueForCompare = (ignoreCase ? attributeValue.toLowerCase() : attributeValue);
 		
@@ -358,9 +359,9 @@ public class DSJQuery {
 	}
 	
 	
-	public DSJQuery filter_byAttribute_contains (String attributeName, String attributeValue, boolean ignoreCase) throws DSAuthorizationException, DSException {
+	public DSJQuery filter_byAttribute_contains (String attributeName, String attributeValue, boolean ignoreCase) throws DSAuthorizationException, DSException, DSJQueryException {
 		
-		List<DSObject> newDsObjects = new LinkedList<DSObject>();
+		List<DSObject> newDsObjects = new LinkedList<>();
 		
 		String attributeValueForCompare = (ignoreCase ? attributeValue.toLowerCase() : attributeValue);
 		
@@ -386,9 +387,9 @@ public class DSJQuery {
 	}
 	
 	
-	public DSJQuery filter_byAttribute_equals (String attributeName, String attributeValue, boolean ignoreCase) throws DSAuthorizationException, DSException {
+	public DSJQuery filter_byAttribute_equals (String attributeName, String attributeValue, boolean ignoreCase) throws DSAuthorizationException, DSException, DSJQueryException {
 		
-		List<DSObject> newDsObjects = new LinkedList<DSObject>();
+		List<DSObject> newDsObjects = new LinkedList<>();
 		
 		String attributeValueForCompare = (ignoreCase ? attributeValue.toLowerCase() : attributeValue);
 		
@@ -414,10 +415,10 @@ public class DSJQuery {
 	}
 	
 	
-	public DSJQuery filter_byClassName (String className) throws DSException {
+	public DSJQuery filter_byClassName (String className) throws DSException, DSJQueryException {
 		
-		List<DSObject> newDsObjects = new LinkedList<DSObject>(dsObjects);
-		List<DSObject> newDsObjectsCopy = new LinkedList<DSObject>(dsObjects);
+		List<DSObject> newDsObjects = new LinkedList<>(dsObjects);
+		List<DSObject> newDsObjectsCopy = new LinkedList<>(dsObjects);
 		
 		for (DSObject obj : newDsObjects) {
 			
@@ -439,11 +440,10 @@ public class DSJQuery {
 	 * @param selector
 	 * @return A new DSJquery object
 	 * @throws DSException
-	 * @throws DSJQuerySelectorException
-	 * 
+	 * @throws DSJQueryException 
 	 * @see <a href="https://api.jquery.com/filter/">filter() | jQuery API</a>
 	 */
-	public DSJQuery filter (String selector) throws DSException, DSJQuerySelectorException {
+	public DSJQuery filter (String selector) throws DSException, DSJQueryException {
 		
 		/*
 		 * For a filter to work, we must have some objects.
@@ -515,10 +515,11 @@ public class DSJQuery {
 	 * @category FILTERING
 	 * 
 	 * @return A new DSJquery object
+	 * @throws DSJQueryException 
 	 * 
 	 * @see <a href="https://api.jquery.com/first/">first() | jQuery API</a>
 	 */
-	public DSJQuery first () {
+	public DSJQuery first () throws DSJQueryException {
 		if (dsObjects.size() > 0) {
 			return new DSJQuery(dsObjects.get(0));
 		}
@@ -531,15 +532,16 @@ public class DSJQuery {
 	 * @category SORTING
 	 * 
 	 * @param comparator
-	 * @return
+	 * @return A new, sorted DSJQuery object
+	 * @throws DSJQueryException 
 	 */
-	public DSJQuery sort (Comparator<DSObject> comparator) {
+	public DSJQuery sort (Comparator<DSObject> comparator) throws DSJQueryException {
 		
 		if (dsObjects == null)
 			return new DSJQuery();
 		
 		if (dsObjects.size() == 0) {
-			return new DSJQuery(new LinkedList<DSObject>());
+			return new DSJQuery(new LinkedList<>());
 		}
 			
 		List<DSObject> newDsObjects = new LinkedList<>(dsObjects);
@@ -557,8 +559,9 @@ public class DSJQuery {
 	 * @param attributeName
 	 * @return The current DSJQuery object
 	 * @throws DSException
+	 * @throws DSJQueryException 
 	 */
-	public DSJQuery sortAsc_byAttribute (String attributeName) throws DSException {
+	public DSJQuery sortAsc_byAttribute (String attributeName) throws DSException, DSJQueryException {
 		
 		Comparator<DSObject> attributeComparator = new Comparator<DSObject>() {
 
@@ -610,9 +613,10 @@ public class DSJQuery {
 	 * Reverses the order of the current set of objects.  Can be used to reorder a list in descending order after calling sortAsc.
 	 * @category SORTING
 	 * 
-	 * @return A new DSJquery object
+	 * @return A new DSJQuery object
+	 * @throws DSJQueryException 
 	 */
-	public DSJQuery reverse() {
+	public DSJQuery reverse() throws DSJQueryException {
 		
 		if (dsObjects == null)
 			return new DSJQuery();
@@ -630,7 +634,7 @@ public class DSJQuery {
 	 * @category ATTRIBUTES
 	 * 
 	 * @param attributeName
-	 * @return 
+	 * @return The selected attribute value
 	 * @throws DSException
 	 * 
 	 * @see <a href="https://api.jquery.com/attr/">attr() | jQuery API</a>
@@ -679,7 +683,7 @@ public class DSJQuery {
 	 * @category ATTRIBUTES
 	 * 
 	 * @param keywordToAdd
-	 * @return The current DSJquery object
+	 * @return The current DSJQuery object
 	 * @throws DSAuthorizationException
 	 * @throws DSException
 	 * 
@@ -752,11 +756,18 @@ public class DSJQuery {
 	
 	/**
 	 * Creates a new DSJQuery object with the same set of matching objects.
+	 * To override Object.clone(), this method assumes that the static session object is still available.
 	 * 
 	 * @see <a href="https://api.jquery.com/clone/">clone() | jQuery API</a>
 	 */
 	public DSJQuery clone() {
-		return new DSJQuery(new LinkedList<>(dsObjects));
+		try {
+			return new DSJQuery(new LinkedList<>(dsObjects));
+		} 
+		catch (DSJQueryException e) {
+			e.printStackTrace();
+			return null;
+		}
 	}
 	
 	
@@ -828,7 +839,7 @@ public class DSJQuery {
 	/**
 	 * For debug purposes, outputs the handles and titles of objects currently the DSJQuery object.
 	 * 
-	 * @return
+	 * @return The current DSJQuery object
 	 * @throws DSException
 	 */
 	public DSJQuery print() throws DSException {
@@ -839,5 +850,14 @@ public class DSJQuery {
 		System.out.println();
 		
 		return this;
+	}
+
+	
+	public Iterator<DSObject> iterator() {
+		if (dsObjects == null) {
+			return new LinkedList<DSObject>().iterator();
+		}
+		
+		return dsObjects.iterator();
 	}
 }
