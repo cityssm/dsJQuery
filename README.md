@@ -1,6 +1,6 @@
-# dsJQuery
+# dsJQuery - DocuShare jQuery
 
-DocuShare jQuery
+[JavaDocs](https://cityssm.github.io/dsJQuery/)
 
 An attempt to simplify the [Xerox DocuShare](https://www.docushare.com/) API by modeling after the familiar 
 [jQuery API](http://api.jquery.com/).
