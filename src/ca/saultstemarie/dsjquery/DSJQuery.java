@@ -292,10 +292,12 @@ public class DSJQuery implements Iterable<DSObject> {
 	 * Retrieves the immediate descendants for all selected collections which satisfy a given filter. 
 	 * @category TRAVERSING
 	 * 
+	 * @param filterSelector
 	 * @return A new DSJQuery object
 	 * @throws DSInvalidLicenseException
 	 * @throws DSException
 	 * @throws DSJQueryException 
+	 * 
 	 * @see <a href="https://api.jquery.com/children/">children() | jQuery API</a>
 	 */
 	public DSJQuery children (String filterSelector) throws DSInvalidLicenseException, DSException, DSJQueryException {
