@@ -17,7 +17,7 @@ DSServer dsServer = null;
 DSSession dsSession = null;
 	
 try {
-     // Create a DocuShare session
+    // Create a DocuShare session
     dsServer = DSFactory.createServer(ds_serverName);
     dsSession = dsServer.createSession(ds_domain, ds_userName, ds_password);
     
@@ -96,4 +96,41 @@ DSJQuery dsjQuery_documents = new DSJQuery(".Document")
     .filter("[content_type='image/png']")
     .sortAsc_byAttribute("create_date")
     .reverse();
+```
+
+## Troubleshooting "Couldn't get a stream to remote file" and "Connection refused to host"
+
+If you are using dsJQuery to upload files, you may run into an exception similar to the one below.
+
+```
+com.xerox.docushare.content.ContentStoreException: Couldn't get a stream to remote file: C:\file.txt; nested exception is: 
+	java.rmi.ConnectException: Connection refused to host: 192.168.56.1; nested exception is: 
+	java.net.ConnectException: Connection refused: connect; nested exception is: 
+	com.xerox.docushare.DSContentElementException: Couldn't get a stream to remote file: C:\file.txt; nested exception is: 
+	java.rmi.ConnectException: Connection refused to host: 192.168.56.1; nested exception is: 
+	java.net.ConnectException: Connection refused: connect
+	...
+```
+
+This happens when the remote method gets bound to an incorrect IP address.
+In my case, the IP address in the exception is associated with Virtualbox.
+
+There are many ways to solve this.
+[See this question on Stack Overflow](https://stackoverflow.com/q/15685686)
+
+The [answer I chose](https://stackoverflow.com/a/28800991) explicitly sets the `java.rmi.server.hostname` property,
+**prior to creating** the `DSSession` object.
+
+```java
+System.setProperty("java.rmi.server.hostname", properNetworkIpAddress);
+
+DSServer dsServer = null;
+DSSession dsSession = null;
+	
+try {
+    dsServer = DSFactory.createServer(ds_serverName);
+    dsSession = dsServer.createSession(ds_domain, ds_userName, ds_password);
+    // ...
+}
+// ...
 ```
