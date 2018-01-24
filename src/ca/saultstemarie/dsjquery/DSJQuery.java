@@ -18,6 +18,7 @@ import com.xerox.docushare.DSLoginPrincipal;
 import com.xerox.docushare.DSObject;
 import com.xerox.docushare.DSObjectIterator;
 import com.xerox.docushare.DSResultIterator;
+import com.xerox.docushare.DSServer;
 import com.xerox.docushare.DSSession;
 import com.xerox.docushare.FileContentElement;
 import com.xerox.docushare.db.DatabaseException;
@@ -53,6 +54,44 @@ public class DSJQuery implements Iterable<DSObject> {
 	 */
 	public static void sessionSetup(DSSession dsSession) {
 		SESSION = dsSession;
+	}
+	
+	
+	/**
+	 * Checks if a DSSession object has been set.
+	 * @category SETUP
+	 * 
+	 * @return
+	 */
+	public static boolean hasSession() {
+		return SESSION != null;
+	}
+	
+	
+	/**
+	 * Closes the DSSession and clears it from dsJQuery.
+	 * Make sure other threads aren't using dsJQuery before doing this, as they will break.
+	 * Note that a new DSSession will be required to use dsJQuery again.
+	 * @category SETUP
+	 */
+	public static void closeSession() {
+
+		try {
+			DSServer dsServer = SESSION.getServer();
+			SESSION.close();
+			dsServer.close();
+		}
+		catch (DSException e) {}
+		
+		clearSession();
+	}
+	
+	
+	/**
+	 * Clears the DSSession object from dsJQuery, but does not close it.
+	 */
+	public static void clearSession() {
+		SESSION = null;
 	}
 	
 	
@@ -824,6 +863,17 @@ public class DSJQuery implements Iterable<DSObject> {
 	}
 
 	
+	/**
+	 * Inserts a new Document under each collection in the set.
+	 * @category INSERTING
+	 * 
+	 * @param file
+	 * @return A new DSJQuery object containing all of the created Documents.
+	 * @throws DSAuthorizationException
+	 * @throws DSInvalidLicenseException
+	 * @throws DSException
+	 * @throws DSJQueryException
+	 */
 	public DSJQuery insertAndGet (File file) throws DSAuthorizationException, DSInvalidLicenseException, DSException, DSJQueryException {
 		
 		if (dsObjects == null) {
@@ -882,7 +932,40 @@ public class DSJQuery implements Iterable<DSObject> {
 		
 		return new DSJQuery(newDsObjects);
 	}
+
 	
+	public DSJQuery insertCollectionAndGet (String collectionName) throws DSException, DSJQueryException {
+		
+		if (dsObjects == null) {
+			return new DSJQuery(new LinkedList<>());
+		}
+		
+		LinkedList<DSObject> newDsObjects = new LinkedList<>();
+
+		for (DSObject potentialParent : dsObjects) {
+			
+			if (potentialParent instanceof DSCollection) {
+				
+				DSCollection parentCollection = (DSCollection)potentialParent;
+
+				// Document Prototype
+				DSClass colClass = SESSION.getDSClass(DSCollection.classname);
+				DSProperties colProto = colClass.createPrototype();
+				colProto.setPropValue(DSObject.title, collectionName);
+
+				DSHandle newDocHandle = SESSION.createObject(
+						colProto, 
+						DSLinkDesc.containment,
+						parentCollection,
+						(DSLoginPrincipal)SESSION.getObject(SESSION.getLoginPrincipalHandle()),
+						null);
+				
+				newDsObjects.add(SESSION.getObject(newDocHandle));
+			}
+		}
+		
+		return new DSJQuery(newDsObjects);
+	}
 	
 	/**
 	 * Returns the total number of DSObjects in the DSJQuery object.
