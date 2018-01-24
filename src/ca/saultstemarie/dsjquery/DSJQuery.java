@@ -1,5 +1,6 @@
 package ca.saultstemarie.dsjquery;
 
+import java.io.File;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
@@ -8,15 +9,24 @@ import java.util.LinkedList;
 import java.util.List;
 
 import com.xerox.docushare.DSAuthorizationException;
+import com.xerox.docushare.DSClass;
+import com.xerox.docushare.DSContentElement;
 import com.xerox.docushare.DSException;
 import com.xerox.docushare.DSHandle;
 import com.xerox.docushare.DSInvalidLicenseException;
+import com.xerox.docushare.DSLoginPrincipal;
 import com.xerox.docushare.DSObject;
 import com.xerox.docushare.DSObjectIterator;
 import com.xerox.docushare.DSResultIterator;
 import com.xerox.docushare.DSSession;
+import com.xerox.docushare.FileContentElement;
 import com.xerox.docushare.db.DatabaseException;
 import com.xerox.docushare.object.DSCollection;
+import com.xerox.docushare.object.DSDocument;
+import com.xerox.docushare.object.DSRendition;
+import com.xerox.docushare.object.DSVersion;
+import com.xerox.docushare.property.DSLinkDesc;
+import com.xerox.docushare.property.DSProperties;
 import com.xerox.docushare.query.DSCollectionScope;
 import com.xerox.docushare.query.DSQuery;
 
@@ -699,7 +709,9 @@ public class DSJQuery implements Iterable<DSObject> {
 		for (DSObject obj : dsObjects) {
 			
 			boolean keywordFound = false;
-			String[] currentKeywords = obj.getKeywords().split(",");
+			
+			String currentKeywordsString = obj.getKeywords().trim();
+			String[] currentKeywords = currentKeywordsString.split(",");
 			
 			for (String keyword : currentKeywords) {
 				if (keyword.trim().equals(keywordToAdd)) {
@@ -709,7 +721,9 @@ public class DSJQuery implements Iterable<DSObject> {
 			}
 			
 			if (!keywordFound) {
-				obj.setKeywords(obj.getKeywords() + (currentKeywords.length > 0 ? ", " : "") + keywordToAdd);
+				obj.setKeywords(currentKeywordsString + 
+						(currentKeywordsString.equals("") ? "" : ", ") +
+						keywordToAdd);
 				obj.save();
 			}
 		}
@@ -809,6 +823,66 @@ public class DSJQuery implements Iterable<DSObject> {
 		return this;
 	}
 
+	
+	public DSJQuery insertAndGet (File file) throws DSAuthorizationException, DSInvalidLicenseException, DSException, DSJQueryException {
+		
+		if (dsObjects == null) {
+			return new DSJQuery(new LinkedList<>());
+		}
+		
+		if (!file.exists()) {
+			throw new DSJQueryException("File does not exist: " + file.getAbsolutePath());
+		}
+		else if (file.isDirectory()) {
+			throw new DSJQueryException("File is a directory: " + file.getAbsolutePath());
+		}
+		
+		LinkedList<DSObject> newDsObjects = new LinkedList<>();
+
+		for (DSObject potentialParent : dsObjects) {
+			
+			if (potentialParent instanceof DSCollection) {
+				
+				DSCollection parentCollection = (DSCollection)potentialParent;
+				
+				String title = file.getName();
+				
+				// Document Prototype
+				DSClass docClass = SESSION.getDSClass(DSDocument.classname);
+				DSProperties docProto = docClass.createPrototype();
+				docProto.setPropValue(DSObject.title, title);
+				
+				// Version Prototype
+				DSClass versionClass = SESSION.getDSClass(DSVersion.classname);
+				DSProperties versionProto = versionClass.createPrototype();
+				versionProto.setPropValue(DSObject.title, title);
+				versionProto.setPropValue(DSVersion.revision_comments, "(Initial version)");
+				
+				// Rendition Prototype
+				DSClass renditionClass = SESSION.getDSClass(DSRendition.classname);
+				DSProperties renditionProto = renditionClass.createPrototype();
+				renditionProto.setPropValue(DSRendition.title, title);
+				
+				FileContentElement ce = new FileContentElement(file.getAbsolutePath(), false);
+				
+				DSHandle newDocHandle = SESSION.createDocument(
+						docProto, 
+						versionProto,
+						renditionProto,
+						new DSContentElement[] {ce},
+						null,
+						DSLinkDesc.containment,
+						parentCollection,
+						(DSLoginPrincipal)SESSION.getObject(SESSION.getLoginPrincipalHandle()),
+						null);
+				
+				newDsObjects.add(SESSION.getObject(newDocHandle));
+			}
+		}
+		
+		return new DSJQuery(newDsObjects);
+	}
+	
 	
 	/**
 	 * Returns the total number of DSObjects in the DSJQuery object.
