@@ -61,7 +61,7 @@ finally {
 
 **dsjQuery.find(String selector);**
 
-Searches beneath all collections for objects the match the given selector.
+Searches beneath all collections for objects that match the given selector.
 
 - Use `*` to select all child objects.
 - Use `.` to select by class.
