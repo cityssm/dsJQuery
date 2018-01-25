@@ -120,20 +120,17 @@ This happens when the remote method gets bound to an incorrect IP address.
 In my case, the IP address in the exception is associated with Virtualbox.
 
 There are many ways to solve this.
-[See this question on Stack Overflow](https://stackoverflow.com/q/15685686)
+[See this question on Stack Overflow](https://stackoverflow.com/q/15685686).
 
 The [answer I chose](https://stackoverflow.com/a/28800991) explicitly sets the `java.rmi.server.hostname` property,
-**prior to creating** the `DSSession` object.
+**prior to running any queries**.
 
 ```java
 System.setProperty("java.rmi.server.hostname", properNetworkIpAddress);
 
-DSServer dsServer = null;
-DSSession dsSession = null;
-	
 try {
-    dsServer = DSFactory.createServer(ds_serverName);
-    dsSession = dsServer.createSession(ds_domain, ds_userName, ds_password);
+    DSJQuery.serverSetup(ds_serverName);
+    DSJQuery.sessionSetup(ds_domain, ds_userName, ds_password);
     // ...
 }
 // ...
