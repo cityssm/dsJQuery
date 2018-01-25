@@ -1,7 +1,5 @@
 # dsJQuery - DocuShare jQuery
 
-[JavaDocs](https://cityssm.github.io/dsJQuery/)
-
 An attempt to simplify the [Xerox DocuShare](https://www.docushare.com/) API by modeling after the familiar 
 [jQuery API](http://api.jquery.com/).
 
@@ -13,16 +11,11 @@ available on the [DocuShare Developer Network website](https://docushare.xerox.c
 Developed and tested against DocuShare 6.6.1.
 
 ```java
-DSServer dsServer = null;
-DSSession dsSession = null;
 	
 try {
-    // Create a DocuShare session
-    dsServer = DSFactory.createServer(ds_serverName);
-    dsSession = dsServer.createSession(ds_domain, ds_userName, ds_password);
-    
-    // Define the session
-    DSJQuery.sessionSetup(dsSession);
+    // Initialize DSJQuery with connection information
+    DSJQuery.serverSetup(ds_serverName);
+    DSJQuery.sessionSetup(ds_domain, ds_userName, ds_password);
     
     // Create a new DSJquery object and retrieve the root collection
     DSJQuery dsjQuery_rootCollection = new DSJQuery("#Collection-111");
@@ -39,22 +32,32 @@ catch (Exception e) {
     e.printStackTrace();
 }
 finally {
-    // Close the DocuShare session
-    try {
-        dsSession.close();
-        dsServer.close();
-    }
-    catch (Exception e) {
-        // ignore
-    }
+    // Close open DocuShare sessions
+    DSJQuery.closeOpenSessions();
 }
 ```
 
 ## Key Methods
 
-**DSJQuery.sessionSetup(DSSession dsSession);**
+[See the JavaDocs](https://cityssm.github.io/dsJQuery/)
 
-Sets the DocuShare session that should be used.
+**DSJQuery.serverSetup(String serverName, int serverPort);**
+
+**DSJQuery.serverSetup(String serverName);**
+
+- Initializes DSJQuery with the DocuShare server details that should be used.
+- REQUIRED BEFORE USE.
+- Uses default port number 1099 if the shorthand method is used.
+
+
+**DSJQuery.sessionSetup(String userDomain, String userName, String password);**
+
+**DSJQuery.sessionSetup(String userName, String password);**
+
+- Initializes DSJQuery with the DocuShare session details that should be used.
+- REQUIRED BEFORE USE.
+- Uses default domain name "DocuShare" if the shorthand method is used.
+
 
 **dsjQuery.find(String selector);**
 
@@ -65,6 +68,7 @@ Searches beneath all collections for objects the match the given selector.
   - i.e. `.Collection`, `.Document`
 - Use `#` to select a specific object by handle.
   - i.e. `.Collection-111`
+
 
 **dsjQuery.filter(String selector);**
 

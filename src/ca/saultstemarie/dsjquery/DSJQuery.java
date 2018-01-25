@@ -4,14 +4,18 @@ import java.io.File;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.Deque;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.concurrent.LinkedBlockingDeque;
+import java.util.concurrent.Semaphore;
 
 import com.xerox.docushare.DSAuthorizationException;
 import com.xerox.docushare.DSClass;
 import com.xerox.docushare.DSContentElement;
 import com.xerox.docushare.DSException;
+import com.xerox.docushare.DSFactory;
 import com.xerox.docushare.DSHandle;
 import com.xerox.docushare.DSInvalidLicenseException;
 import com.xerox.docushare.DSLoginPrincipal;
@@ -42,56 +46,197 @@ import ca.saultstemarie.dsjquery.DSJQueryException.DSJQuerySelectorException;
  * @see <a href="https://github.com/cityssm/dsJQuery">dsJQuery on GitHub</a>
  */
 public class DSJQuery implements Iterable<DSObject> {
+	
+	/*
+	 * STATIC SESSION DETAILS
+	 */
+	
+	private static Deque<DSSession> SESSION_STACK = null;
+	private static Semaphore        SESSION_STACK_AVAILABLE = null;
+	private static int              SESSION_STACK_SIZE = 2;
+	
+	
+	public final static int    DEFAULT_SERVER_PORT    = 1099;
+	public final static String DEFAULT_SESSION_DOMAIN = "DocuShare";
+	
 
-	private static DSSession SESSION = null;
+	private static String SERVER_NAME = null;
+	private static int    SERVER_PORT = DEFAULT_SERVER_PORT;
+	
+	
+	private static String SESSION_DOMAIN   = DEFAULT_SESSION_DOMAIN;
+	private static String SESSION_USERNAME = null;
+	private static String SESSION_PASSWORD = null;
 	
 	
 	/**
-	 * Sets the DSSession object to be used for queries.
+	 * Initializes DSJQuery with DocuShare server details.
+	 * Uses the default DocuShare port number.
 	 * @category SETUP
 	 * 
-	 * @param dsSession An active session with a DocuShare server.
+	 * @param serverName
+	 * @throws DSJQueryException
 	 */
-	public static void sessionSetup(DSSession dsSession) {
-		SESSION = dsSession;
+	public static void serverSetup (String serverName) throws DSJQueryException {
+		serverSetup(serverName, DEFAULT_SERVER_PORT);
 	}
 	
 	
 	/**
-	 * Checks if a DSSession object has been set.
+	 * Initializes DSJQuery with complete DocuShare server details.
+	 * @category SETUP
+	 * 
+	 * @param serverName
+	 * @param serverPort
+	 * @throws DSJQueryException
+	 */
+	public static void serverSetup (String serverName, int serverPort) throws DSJQueryException {
+
+		if (hasSessionsInUse()) {
+			throw new DSJQueryException("DSJQuery currently in use.");
+		}
+		
+		closeOpenSessions();
+		
+		SERVER_NAME = serverName;
+		SERVER_PORT = serverPort;
+		
+	}
+	
+	
+	/**
+	 * Tests if the DocuShare server details have been initialized.
+	 * @category SETUP
+	 *  
+	 * @return
+	 */
+	public static boolean isServerSetup() {
+		return (SERVER_NAME != null);
+	}
+	
+	
+	/**
+	 * Checks if there are any outstanding DSSession objects in use by DSJQuery.
+	 * If outstanding sessions exist, server and session details cannot be changed.
 	 * @category SETUP
 	 * 
 	 * @return
 	 */
-	public static boolean hasSession() {
-		return SESSION != null;
-	}
-	
-	
-	/**
-	 * Closes the DSSession and clears it from dsJQuery.
-	 * Make sure other threads aren't using dsJQuery before doing this, as they will break.
-	 * Note that a new DSSession will be required to use dsJQuery again.
-	 * @category SETUP
-	 */
-	public static void closeSession() {
-
-		try {
-			DSServer dsServer = SESSION.getServer();
-			SESSION.close();
-			dsServer.close();
-		}
-		catch (DSException e) {}
+	private static boolean hasSessionsInUse() {
 		
-		clearSession();
+		if (SESSION_STACK_AVAILABLE != null &&
+				SESSION_STACK_AVAILABLE.availablePermits() < SESSION_STACK_SIZE) {
+			return true;
+		}
+		return false;
 	}
 	
 	
 	/**
-	 * Clears the DSSession object from dsJQuery, but does not close it.
+	 * Initializes DSJQuery with session login details.
+	 * Uses the default DocuShare domain.
+	 * @category SETUP
+	 * 
+	 * @param userName
+	 * @param password
+	 * @throws DSJQueryException
 	 */
-	public static void clearSession() {
-		SESSION = null;
+	public static void sessionSetup (String userName, String password) throws DSJQueryException {
+		sessionSetup (DEFAULT_SESSION_DOMAIN, userName, password);
+	}
+	
+	
+	/**
+	 * Initializes DSJQuery with complete session login details.
+	 * @category SETUP
+	 * 
+	 * @param userDomain
+	 * @param userName
+	 * @param password
+	 * @throws DSJQueryException
+	 */
+	public static void sessionSetup (String userDomain, String userName, String password) throws DSJQueryException {
+
+		if (hasSessionsInUse()) {
+			throw new DSJQueryException("DSJQuery currently in use.");
+		}
+		
+		closeOpenSessions();
+		
+		SESSION_DOMAIN   = userDomain;
+		SESSION_USERNAME = userName;
+		SESSION_PASSWORD = password;
+	}
+	
+	
+	/**
+	 * Tests if the DocuShare session login details have been initialized.
+	 * @category SETUP
+	 * 
+	 * @return
+	 */
+	public static boolean isSessionSetup() {
+		return (SESSION_USERNAME != null && SESSION_PASSWORD != null);
+	}
+	
+	
+	protected static synchronized DSSession getSession() throws InterruptedException, DSInvalidLicenseException, DSException {
+		
+		if (SESSION_STACK == null) {
+			SESSION_STACK = new LinkedBlockingDeque<>(SESSION_STACK_SIZE);
+			SESSION_STACK_AVAILABLE = new Semaphore(SESSION_STACK_SIZE, true);
+		}
+		
+		SESSION_STACK_AVAILABLE.acquire();
+		
+		if (SESSION_STACK.isEmpty()) {
+			DSServer dsServer = DSFactory.createServer(SERVER_NAME, SERVER_PORT);
+			DSSession dsSession = dsServer.createSession(SESSION_DOMAIN, SESSION_USERNAME, SESSION_PASSWORD);
+			return dsSession;
+			
+		} else {
+			DSSession dsSession = SESSION_STACK.pop();
+			
+			if (dsSession.isClosed()) {
+				DSServer dsServer = DSFactory.createServer(SERVER_NAME, SERVER_PORT);
+				dsSession = dsServer.createSession(SESSION_DOMAIN, SESSION_USERNAME, SESSION_PASSWORD);
+			}
+			
+			return dsSession;
+		}
+	}
+	
+	
+	protected static synchronized void returnSession(DSSession dsSession) {
+		if (dsSession != null) {
+			SESSION_STACK.push(dsSession);
+		}
+		SESSION_STACK_AVAILABLE.release();
+	}
+
+	
+	/**
+	 * Closes all DSSession objects currently queued.
+	 * This method should be called when DSJQuery is done being used, or won't be used for a while.
+	 */
+	public static synchronized void closeOpenSessions() {
+		
+		if (SESSION_STACK == null) {
+			return;
+		}
+		
+		while (!SESSION_STACK.isEmpty()) {
+			try {
+				DSSession dsSession = SESSION_STACK.pop();
+				DSServer dsServer = dsSession.getServer();
+				
+				dsSession.close();
+				dsServer.close();
+			}
+			catch (Exception e) {
+				// ignore
+			}
+		}
 	}
 	
 	
@@ -100,15 +245,18 @@ public class DSJQuery implements Iterable<DSObject> {
 	
 	/**
 	 * Creates a new DSJQuery object at the root of the DocuShare library.
-	 * It contains no DSObjects, but in it's state, and DSObject in the library can be selected.
+	 * It contains no DSObjects, but in it's state, any DSObject in the library can be selected.
 	 * @throws DSJQueryException 
 	 * @category CORE
 	 * 
-	 *  @see <a href="https://api.jquery.com/jQuery/">jQuery() | jQuery API</a>
+	 * @see <a href="https://api.jquery.com/jQuery/">jQuery() | jQuery API</a>
 	 */
 	public DSJQuery() throws DSJQueryException {
-		if (SESSION == null) {
-			throw new DSJQueryException("No DocuShare session available. Set using DSJQuery.sessionSetup();");
+		if (!isServerSetup()) {
+			throw new DSJQueryException("DocuShare server settings missing. Set using DSJQuery.serverSetup();");
+		}
+		else if (!isSessionSetup()) {
+			throw new DSJQueryException("DocuShare session settings missing. Set using DSJQuery.sessionSetup();");
 		}
 	}
 	
@@ -121,8 +269,9 @@ public class DSJQuery implements Iterable<DSObject> {
 	 * @throws DSException 
 	 * @throws DSInvalidLicenseException 
 	 * @throws DSJQueryException 
+	 * @throws InterruptedException 
 	 */
-	public DSJQuery(String findSelector) throws DSInvalidLicenseException, DSException, DSJQueryException {
+	public DSJQuery(String findSelector) throws DSInvalidLicenseException, DSException, DSJQueryException, InterruptedException {
 		this();
 		dsObjects = find(findSelector).dsObjects;
 	}
@@ -141,118 +290,147 @@ public class DSJQuery implements Iterable<DSObject> {
 	}
 	
 	
-	public DSJQuery find_all() throws DSInvalidLicenseException, DSException, DSJQueryException {
+	public DSJQuery find_all() throws DSInvalidLicenseException, DSException, DSJQueryException, InterruptedException {
 		
-		List<DSObject> newDsObjects = new LinkedList<>();
+		DSSession dsSession = null;
 		
-		if (dsObjects == null) {
+		try {
+			dsSession = getSession();
+		
+			List<DSObject> newDsObjects = new LinkedList<>();
 			
-			DSQuery query = new DSQuery();
-			DSResultIterator result = SESSION.search(query).iterator();
-			
-			while (result.hasNext()) {
-				DSObject item = result.nextObject().getObject();
-				newDsObjects.add(item);
-			}
-			
-		}
-		else {
-			
-			for (DSObject parentObj : dsObjects) {
+			if (dsObjects == null) {
 				
-				if (parentObj instanceof DSCollection) {
-
-					DSQuery query = new DSQuery();
-					query.addCollectionScope( new DSCollectionScope( new DSHandle[]{parentObj.getHandle()}) );
-
-					DSResultIterator result = SESSION.search(query).iterator();
+				DSQuery query = new DSQuery();
+				DSResultIterator result = dsSession.search(query).iterator();
+				
+				while (result.hasNext()) {
+					DSObject item = result.nextObject().getObject();
+					newDsObjects.add(item);
+				}
+				
+			}
+			else {
+				
+				for (DSObject parentObj : dsObjects) {
 					
-					while (result.hasNext()) {
-						DSObject item = result.nextObject().getObject();
-						newDsObjects.add(item);
+					if (parentObj instanceof DSCollection) {
+	
+						DSQuery query = new DSQuery();
+						query.addCollectionScope( new DSCollectionScope( new DSHandle[]{parentObj.getHandle()}) );
+	
+						DSResultIterator result = dsSession.search(query).iterator();
+						
+						while (result.hasNext()) {
+							DSObject item = result.nextObject().getObject();
+							newDsObjects.add(item);
+						}
 					}
 				}
 			}
+			
+			return new DSJQuery(newDsObjects);
 		}
-		
-		return new DSJQuery(newDsObjects);
+		finally {
+			returnSession(dsSession);
+		}
 	}
 
 	
-	public DSJQuery find_byHandle (String handle) throws DSInvalidLicenseException, DSException, DSJQueryException {
+	public DSJQuery find_byHandle (String handle) throws DSInvalidLicenseException, DSException, DSJQueryException, InterruptedException {
 		
-		List<DSObject> newDsObjects = new LinkedList<>();
+		DSSession dsSession = null;
 		
-		if (dsObjects == null) {
+		try {
 			
-			try {
-				DSObject obj = SESSION.getObject(new DSHandle(handle));
-				newDsObjects.add(obj);
-			}
-			catch (Exception e) {
-				// ignore
-			}
-		}
-		else {
-			for (DSObject parentObj : dsObjects) {
+			dsSession = getSession();
+		
+			List<DSObject> newDsObjects = new LinkedList<>();
+			
+			if (dsObjects == null) {
 				
-				if (parentObj instanceof DSCollection) {
-
-					DSQuery query = new DSQuery( DSQuery.matches("handle", handle) );
-					query.addCollectionScope( new DSCollectionScope( new DSHandle[]{parentObj.getHandle()}) );
+				try {
+					DSObject obj = dsSession.getObject(new DSHandle(handle));
+					newDsObjects.add(obj);
+				}
+				catch (Exception e) {
+					// ignore
+				}
+			}
+			else {
+				for (DSObject parentObj : dsObjects) {
 					
-					DSResultIterator result = SESSION.search(query).iterator();
-					
-					if (result.hasNext()) {
-						DSObject item = result.nextObject().getObject();
-						newDsObjects.add(item);
-						break;
+					if (parentObj instanceof DSCollection) {
+	
+						DSQuery query = new DSQuery( DSQuery.matches("handle", handle) );
+						query.addCollectionScope( new DSCollectionScope( new DSHandle[]{parentObj.getHandle()}) );
+						
+						DSResultIterator result = dsSession.search(query).iterator();
+						
+						if (result.hasNext()) {
+							DSObject item = result.nextObject().getObject();
+							newDsObjects.add(item);
+							break;
+						}
 					}
 				}
 			}
+			
+			return new DSJQuery(newDsObjects);
 		}
-		
-		return new DSJQuery(newDsObjects);
+		finally {
+			returnSession(dsSession);
+		}
 	}
 	
 	
-	public DSJQuery find_byClassName (String className) throws DSInvalidLicenseException, DSException, DSJQueryException {
+	public DSJQuery find_byClassName (String className) throws DSInvalidLicenseException, DSException, DSJQueryException, InterruptedException {
 		
-		List<DSObject> newDsObjects = new LinkedList<>();
+		DSSession dsSession = null;
 		
-		if (dsObjects == null) {
+		try {
 			
-			DSQuery query = new DSQuery();
-			query.addClassScope(className);
+			dsSession = getSession();
+		
+			List<DSObject> newDsObjects = new LinkedList<>();
 			
-			DSResultIterator result = SESSION.search(query).iterator();
-			
-			while (result.hasNext()) {
-				DSObject item = result.nextObject().getObject();
-				newDsObjects.add(item);
-			}
-		}
-		else {
-			
-			for (DSObject parentObj : dsObjects) {
+			if (dsObjects == null) {
 				
-				if (parentObj instanceof DSCollection) {
-
-					DSQuery query = new DSQuery();
-					query.addCollectionScope( new DSCollectionScope( new DSHandle[]{parentObj.getHandle()}) );
-					query.addClassScope(className);
+				DSQuery query = new DSQuery();
+				query.addClassScope(className);
+				
+				DSResultIterator result = dsSession.search(query).iterator();
+				
+				while (result.hasNext()) {
+					DSObject item = result.nextObject().getObject();
+					newDsObjects.add(item);
+				}
+			}
+			else {
+				
+				for (DSObject parentObj : dsObjects) {
 					
-					DSResultIterator result = SESSION.search(query).iterator();
-					
-					while (result.hasNext()) {
-						DSObject item = result.nextObject().getObject();
-						newDsObjects.add(item);
+					if (parentObj instanceof DSCollection) {
+	
+						DSQuery query = new DSQuery();
+						query.addCollectionScope( new DSCollectionScope( new DSHandle[]{parentObj.getHandle()}) );
+						query.addClassScope(className);
+						
+						DSResultIterator result = dsSession.search(query).iterator();
+						
+						while (result.hasNext()) {
+							DSObject item = result.nextObject().getObject();
+							newDsObjects.add(item);
+						}
 					}
 				}
 			}
+			
+			return new DSJQuery(newDsObjects);
 		}
-		
-		return new DSJQuery(newDsObjects);
+		finally {
+			returnSession(dsSession);
+		}
 	}
 	
 	
@@ -265,9 +443,10 @@ public class DSJQuery implements Iterable<DSObject> {
 	 * @throws DSException 
 	 * @throws DSInvalidLicenseException 
 	 * @throws DSJQueryException 
+	 * @throws InterruptedException 
 	 * @see <a href="https://api.jquery.com/find/">find() | jQuery API</a>
 	 */
-	public DSJQuery find (String selector) throws DSInvalidLicenseException, DSException, DSJQueryException {
+	public DSJQuery find (String selector) throws DSInvalidLicenseException, DSException, DSJQueryException, InterruptedException {
 
 		/*
 		 * If selectorToken is *, retrieve all child elements
@@ -831,7 +1010,7 @@ public class DSJQuery implements Iterable<DSObject> {
 	 * @category INSERTING
 	 * 
 	 * @param newChildren
-	 * @return The current DSJquery object
+	 * @return The current DSJQuery object
 	 * @throws DSException
 	 * 
 	 * @see <a href="https://api.jquery.com/append/">append() | jQuery API</a>
@@ -839,6 +1018,10 @@ public class DSJQuery implements Iterable<DSObject> {
 	public DSJQuery append (DSJQuery newChildren) throws DSException {
 		
 		if (dsObjects == null) {
+			return this;
+		}
+		
+		if (newChildren.length() == 0) {
 			return this;
 		}
 		
@@ -856,6 +1039,8 @@ public class DSJQuery implements Iterable<DSObject> {
 						// ignore
 					}
 				}
+				
+				parentCollection.save();
 			}
 		}
 		
@@ -873,8 +1058,9 @@ public class DSJQuery implements Iterable<DSObject> {
 	 * @throws DSInvalidLicenseException
 	 * @throws DSException
 	 * @throws DSJQueryException
+	 * @throws InterruptedException 
 	 */
-	public DSJQuery insertAndGet (File file) throws DSAuthorizationException, DSInvalidLicenseException, DSException, DSJQueryException {
+	public DSJQuery insertAndGet (File file) throws DSAuthorizationException, DSInvalidLicenseException, DSException, DSJQueryException, InterruptedException {
 		
 		if (dsObjects == null) {
 			return new DSJQuery(new LinkedList<>());
@@ -887,84 +1073,103 @@ public class DSJQuery implements Iterable<DSObject> {
 			throw new DSJQueryException("File is a directory: " + file.getAbsolutePath());
 		}
 		
-		LinkedList<DSObject> newDsObjects = new LinkedList<>();
-
-		for (DSObject potentialParent : dsObjects) {
-			
-			if (potentialParent instanceof DSCollection) {
-				
-				DSCollection parentCollection = (DSCollection)potentialParent;
-				
-				String title = file.getName();
-				
-				// Document Prototype
-				DSClass docClass = SESSION.getDSClass(DSDocument.classname);
-				DSProperties docProto = docClass.createPrototype();
-				docProto.setPropValue(DSObject.title, title);
-				
-				// Version Prototype
-				DSClass versionClass = SESSION.getDSClass(DSVersion.classname);
-				DSProperties versionProto = versionClass.createPrototype();
-				versionProto.setPropValue(DSObject.title, title);
-				versionProto.setPropValue(DSVersion.revision_comments, "(Initial version)");
-				
-				// Rendition Prototype
-				DSClass renditionClass = SESSION.getDSClass(DSRendition.classname);
-				DSProperties renditionProto = renditionClass.createPrototype();
-				renditionProto.setPropValue(DSRendition.title, title);
-				
-				FileContentElement ce = new FileContentElement(file.getAbsolutePath(), false);
-				
-				DSHandle newDocHandle = SESSION.createDocument(
-						docProto, 
-						versionProto,
-						renditionProto,
-						new DSContentElement[] {ce},
-						null,
-						DSLinkDesc.containment,
-						parentCollection,
-						(DSLoginPrincipal)SESSION.getObject(SESSION.getLoginPrincipalHandle()),
-						null);
-				
-				newDsObjects.add(SESSION.getObject(newDocHandle));
-			}
-		}
+		DSSession dsSession = null;
 		
-		return new DSJQuery(newDsObjects);
+		try {
+			
+			dsSession = getSession();
+		
+			LinkedList<DSObject> newDsObjects = new LinkedList<>();
+	
+			for (DSObject potentialParent : dsObjects) {
+				
+				if (potentialParent instanceof DSCollection) {
+					
+					DSCollection parentCollection = (DSCollection)potentialParent;
+					
+					String title = file.getName();
+					
+					// Document Prototype
+					DSClass docClass = dsSession.getDSClass(DSDocument.classname);
+					DSProperties docProto = docClass.createPrototype();
+					docProto.setPropValue(DSObject.title, title);
+					
+					// Version Prototype
+					DSClass versionClass = dsSession.getDSClass(DSVersion.classname);
+					DSProperties versionProto = versionClass.createPrototype();
+					versionProto.setPropValue(DSObject.title, title);
+					versionProto.setPropValue(DSVersion.revision_comments, "(Initial version)");
+					
+					// Rendition Prototype
+					DSClass renditionClass = dsSession.getDSClass(DSRendition.classname);
+					DSProperties renditionProto = renditionClass.createPrototype();
+					renditionProto.setPropValue(DSRendition.title, title);
+					
+					FileContentElement ce = new FileContentElement(file.getAbsolutePath(), false);
+					
+					DSHandle newDocHandle = dsSession.createDocument(
+							docProto, 
+							versionProto,
+							renditionProto,
+							new DSContentElement[] {ce},
+							null,
+							DSLinkDesc.containment,
+							parentCollection,
+							(DSLoginPrincipal)dsSession.getObject(dsSession.getLoginPrincipalHandle()),
+							null);
+					
+					newDsObjects.add(dsSession.getObject(newDocHandle));
+				}
+			}
+			
+			return new DSJQuery(newDsObjects);
+		}
+		finally {
+			returnSession(dsSession);
+		}
 	}
 
 	
-	public DSJQuery insertCollectionAndGet (String collectionName) throws DSException, DSJQueryException {
+	public DSJQuery insertCollectionAndGet (String collectionName) throws DSException, DSJQueryException, InterruptedException {
 		
 		if (dsObjects == null) {
 			return new DSJQuery(new LinkedList<>());
 		}
 		
-		LinkedList<DSObject> newDsObjects = new LinkedList<>();
-
-		for (DSObject potentialParent : dsObjects) {
-			
-			if (potentialParent instanceof DSCollection) {
-				
-				DSCollection parentCollection = (DSCollection)potentialParent;
-
-				// Document Prototype
-				DSClass colClass = SESSION.getDSClass(DSCollection.classname);
-				DSProperties colProto = colClass.createPrototype();
-				colProto.setPropValue(DSObject.title, collectionName);
-
-				DSHandle newDocHandle = SESSION.createObject(
-						colProto, 
-						DSLinkDesc.containment,
-						parentCollection,
-						(DSLoginPrincipal)SESSION.getObject(SESSION.getLoginPrincipalHandle()),
-						null);
-				
-				newDsObjects.add(SESSION.getObject(newDocHandle));
-			}
-		}
+		DSSession dsSession = null;
 		
-		return new DSJQuery(newDsObjects);
+		try {
+			dsSession = getSession();
+		
+			List<DSObject> newDsObjects = new LinkedList<>();
+	
+			for (DSObject potentialParent : dsObjects) {
+				
+				if (potentialParent instanceof DSCollection) {
+					
+					DSCollection parentCollection = (DSCollection)potentialParent;
+	
+					// Document Prototype
+					DSClass colClass = dsSession.getDSClass(DSCollection.classname);
+					DSProperties colProto = colClass.createPrototype();
+					colProto.setPropValue(DSObject.title, collectionName);
+	
+					DSHandle newDocHandle = dsSession.createObject(
+							colProto, 
+							DSLinkDesc.containment,
+							parentCollection,
+							(DSLoginPrincipal)dsSession.getObject(dsSession.getLoginPrincipalHandle()),
+							null);
+					
+					newDsObjects.add(dsSession.getObject(newDocHandle));
+				}
+			}
+			
+			return new DSJQuery(newDsObjects);
+		}
+		finally {
+			returnSession(dsSession);
+		}
 	}
 	
 	/**
