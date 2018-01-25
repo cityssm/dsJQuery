@@ -339,19 +339,23 @@ public class DSJQuery implements Iterable<DSObject> {
 		try {
 			dsSession = getSession();
 		
-			List<DSObject> newDsObjects = new LinkedList<>();
+			List<DSObject> newDsObjects = null;
 			
 			if (dsObjects == null) {
 				
 				DSQuery query = new DSQuery();
 				DSResultIterator result = dsSession.search(query).iterator();
 				
+				newDsObjects = new ArrayList<>(result.size());
+
 				while (result.hasNext()) {
 					DSObject item = result.nextObject().getObject();
 					newDsObjects.add(item);
 				}
 			}
 			else {
+				
+				newDsObjects = new LinkedList<>();
 				
 				for (DSObject parentObj : dsObjects) {
 					
@@ -462,7 +466,7 @@ public class DSJQuery implements Iterable<DSObject> {
 			
 			dsSession = getSession();
 		
-			List<DSObject> newDsObjects = new LinkedList<>();
+			List<DSObject> newDsObjects = null;
 			
 			if (dsObjects == null) {
 				
@@ -471,12 +475,16 @@ public class DSJQuery implements Iterable<DSObject> {
 				
 				DSResultIterator result = dsSession.search(query).iterator();
 				
+				newDsObjects = new ArrayList<>(result.size());
+				
 				while (result.hasNext()) {
 					DSObject item = result.nextObject().getObject();
 					newDsObjects.add(item);
 				}
 			}
 			else {
+				
+				newDsObjects = new LinkedList<>();
 				
 				for (DSObject parentObj : dsObjects) {
 					
@@ -564,7 +572,7 @@ public class DSJQuery implements Iterable<DSObject> {
 	public DSJQuery children () throws DSException, DSJQueryException {
 		
 		if (dsObjects == null) {
-			return new DSJQuery(new ArrayList<>());			
+			return new DSJQuery(new ArrayList<>(0));			
 		}
 		
 		List<DSObject> newDsObjects = new LinkedList<>();
@@ -717,7 +725,7 @@ public class DSJQuery implements Iterable<DSObject> {
 	
 	public DSJQuery filter_byObjectClass (String className) throws DSException, DSJQueryException {
 		
-		List<DSObject> newDsObjects = new LinkedList<>(dsObjects);
+		List<DSObject> newDsObjects = new ArrayList<>(dsObjects);
 		List<DSObject> newDsObjectsCopy = new LinkedList<>(dsObjects);
 		
 		for (DSObject obj : newDsObjects) {
@@ -756,7 +764,7 @@ public class DSJQuery implements Iterable<DSObject> {
 			return new DSJQuery();
 		
 		if (dsObjects.size() == 0) {
-			return new DSJQuery(new ArrayList<>());
+			return new DSJQuery(new ArrayList<>(0));
 		}
 			
 		
@@ -824,7 +832,7 @@ public class DSJQuery implements Iterable<DSObject> {
 		if (dsObjects.size() > 0) {
 			return new DSJQuery(dsObjects.get(0));
 		}
-		return new DSJQuery(new ArrayList<>());
+		return new DSJQuery(new ArrayList<>(0));
 	}
 	
 	
@@ -843,7 +851,7 @@ public class DSJQuery implements Iterable<DSObject> {
 			return new DSJQuery();
 		
 		if (dsObjects.size() == 0) {
-			return new DSJQuery(new ArrayList<>());
+			return new DSJQuery(new ArrayList<>(0));
 		}
 			
 		List<DSObject> newDsObjects = new ArrayList<>(dsObjects);
@@ -1148,7 +1156,7 @@ public class DSJQuery implements Iterable<DSObject> {
 	public DSJQuery insertAndGet (File file) throws DSException, DSJQueryException, InterruptedException {
 		
 		if (dsObjects == null) {
-			return new DSJQuery(new ArrayList<>());
+			return new DSJQuery(new ArrayList<>(0));
 		}
 		
 		if (!file.exists()) {
@@ -1317,7 +1325,7 @@ public class DSJQuery implements Iterable<DSObject> {
 	
 	public Iterator<DSObject> iterator() {
 		if (dsObjects == null) {
-			return new LinkedList<DSObject>().iterator();
+			return new ArrayList<DSObject>(0).iterator();
 		}
 		
 		return dsObjects.iterator();
