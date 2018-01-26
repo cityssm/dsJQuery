@@ -13,9 +13,9 @@ Developed and tested against DocuShare 6.6.1.
 ```java
 	
 try {
-    // Initialize DSJQuery with connection information
-    DSJQuery.serverSetup(ds_serverName);
-    DSJQuery.sessionSetup(ds_domain, ds_userName, ds_password);
+    // Initialize the DSJQuery Session Handler with connection information
+    DSJQuerySessionHandler.serverSetup(ds_serverName);
+    DSJQuerySessionHandler.sessionSetup(ds_domain, ds_userName, ds_password);
     
     // Create a new DSJquery object and retrieve the root collection
     DSJQuery dsjQuery_rootCollection = new DSJQuery("#Collection-111");
@@ -33,7 +33,7 @@ catch (Exception e) {
 }
 finally {
     // Close open DocuShare sessions
-    DSJQuery.closeOpenSessions();
+    DSJQuerySessionHandler.closeOpenSessions();
 }
 ```
 
@@ -41,20 +41,20 @@ finally {
 
 [See the JavaDocs](https://cityssm.github.io/dsJQuery/)
 
-**DSJQuery.serverSetup(String serverName, int serverPort);**
+**DSJQuerySessionHandler.serverSetup(String serverName, int serverPort);**
 
-**DSJQuery.serverSetup(String serverName);**
+**DSJQuerySessionHandler.serverSetup(String serverName);**
 
-- Initializes DSJQuery with the DocuShare server details that should be used.
+- Initializes the DSJQuery Session Handler with the DocuShare server details that should be used.
 - REQUIRED BEFORE USE.
 - Uses default port number 1099 if the shorthand method is used.
 
 
-**DSJQuery.sessionSetup(String userDomain, String userName, String password);**
+**DSJQuerySessionHandler.sessionSetup(String userDomain, String userName, String password);**
 
-**DSJQuery.sessionSetup(String userName, String password);**
+**DSJQuerySessionHandler.sessionSetup(String userName, String password);**
 
-- Initializes DSJQuery with the DocuShare session details that should be used.
+- Initializes the DSJQuery Session Handler with the DocuShare session details that should be used.
 - REQUIRED BEFORE USE.
 - Uses default domain name "DocuShare" if the shorthand method is used.
 
@@ -123,14 +123,14 @@ There are many ways to solve this.
 [See this question on Stack Overflow](https://stackoverflow.com/q/15685686).
 
 The [answer I chose](https://stackoverflow.com/a/28800991) explicitly sets the `java.rmi.server.hostname` property,
-**prior to running any queries**.
+**before initializing the Session Handler**.
 
 ```java
 System.setProperty("java.rmi.server.hostname", properNetworkIpAddress);
 
 try {
-    DSJQuery.serverSetup(ds_serverName);
-    DSJQuery.sessionSetup(ds_domain, ds_userName, ds_password);
+    DSJQuerySessionHandler.serverSetup(ds_serverName);
+    DSJQuerySessionHandler.sessionSetup(ds_domain, ds_userName, ds_password);
     // ...
 }
 // ...

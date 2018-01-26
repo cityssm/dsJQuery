@@ -5,23 +5,18 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.Deque;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.concurrent.LinkedBlockingDeque;
-import java.util.concurrent.Semaphore;
 
 import com.xerox.docushare.DSClass;
 import com.xerox.docushare.DSContentElement;
 import com.xerox.docushare.DSException;
-import com.xerox.docushare.DSFactory;
 import com.xerox.docushare.DSHandle;
 import com.xerox.docushare.DSLoginPrincipal;
 import com.xerox.docushare.DSObject;
 import com.xerox.docushare.DSObjectIterator;
 import com.xerox.docushare.DSResultIterator;
-import com.xerox.docushare.DSServer;
 import com.xerox.docushare.DSSession;
 import com.xerox.docushare.FileContentElement;
 import com.xerox.docushare.db.DatabaseException;
@@ -45,230 +40,7 @@ import ca.saultstemarie.dsjquery.DSJQueryException.DSJQuerySelectorException;
  * @see <a href="https://github.com/cityssm/dsJQuery">dsJQuery on GitHub</a>
  */
 public class DSJQuery implements Iterable<DSObject> {
-	
-	
-	/*
-	 * STATIC SESSION DETAILS
-	 */
-	
-	
-	/**
-	 * {@value #DEFAULT_SERVER_PORT}, the most commonly used port for DocuShare connections.
-	 */
-	public final static int DEFAULT_SERVER_PORT = 1099;
-	
-	
-	/**
-	 * {@value #DEFAULT_SESSION_DOMAIN}, the domain used for users managed by the DocuShare server.
-	 * 
-	 */
-	public final static String DEFAULT_SESSION_DOMAIN = "DocuShare";
-	
-	
-	private static Deque<DSSession> SESSION_STACK = null;
-	private static Semaphore        SESSION_STACK_AVAILABLE = null;
-	private static int              SESSION_STACK_SIZE = 2;
-	
-	
-	private static String SERVER_NAME = null;
-	private static int    SERVER_PORT = DEFAULT_SERVER_PORT;
-	
-	
-	private static String SESSION_DOMAIN   = DEFAULT_SESSION_DOMAIN;
-	private static String SESSION_USERNAME = null;
-	private static String SESSION_PASSWORD = null;
-	
-	
-	/**
-	 * Initializes DSJQuery with DocuShare server details.
-	 * Uses the default DocuShare port number.
-	 * @category SETUP
-	 * 
-	 * @param serverName - DocuShare server name
-	 * 
-	 * @throws DSJQueryException
-	 */
-	public static void serverSetup (String serverName) throws DSJQueryException {
-		serverSetup(serverName, DEFAULT_SERVER_PORT);
-	}
-	
-	
-	/**
-	 * Initializes DSJQuery with complete DocuShare server details.
-	 * @category SETUP
-	 * 
-	 * @param serverName - DocuShare server name
-	 * @param serverPort - DocuShare server port
-	 * 
-	 * @throws DSJQueryException
-	 */
-	public static void serverSetup (String serverName, int serverPort) throws DSJQueryException {
-
-		if (hasSessionsInUse()) {
-			throw new DSJQueryException("DSJQuery currently in use.");
-		}
 		
-		closeOpenSessions();
-		
-		SERVER_NAME = serverName;
-		SERVER_PORT = serverPort;
-		
-	}
-	
-	
-	/**
-	 * Tests if the DocuShare server details have been initialized.
-	 * @category SETUP
-	 *  
-	 * @return TRUE if the server name has been set.
-	 */
-	public static boolean isServerSetup() {
-		return (SERVER_NAME != null);
-	}
-	
-		
-	/**
-	 * Initializes DSJQuery with session login details.
-	 * Uses the default {@value #DEFAULT_SESSION_DOMAIN} domain.
-	 * @category SETUP
-	 * 
-	 * @param userName - DocuShare user name
-	 * @param password - DocuShare password
-	 * 
-	 * @throws DSJQueryException
-	 */
-	public static void sessionSetup (String userName, String password) throws DSJQueryException {
-		sessionSetup (DEFAULT_SESSION_DOMAIN, userName, password);
-	}
-	
-	
-	/**
-	 * Initializes DSJQuery with complete session login details.
-	 * Note that this user must have read permissions for all objects it queries.
-	 * This user will also be associated with any modifications it makes through DSJQuery.
-	 * @category SETUP
-	 * 
-	 * @param userDomain - The user domain name
-	 * @param userName   - The user name
-	 * @param password   - The password
-	 * 
-	 * @throws DSJQueryException
-	 */
-	public static void sessionSetup (String userDomain, String userName, String password) throws DSJQueryException {
-
-		if (hasSessionsInUse()) {
-			throw new DSJQueryException("DSJQuery currently in use.");
-		}
-		
-		closeOpenSessions();
-		
-		SESSION_DOMAIN   = userDomain;
-		SESSION_USERNAME = userName;
-		SESSION_PASSWORD = password;
-	}
-	
-	
-	/**
-	 * Tests if the DocuShare session login details have been initialized.
-	 * @category SETUP
-	 * 
-	 * @return TRUE if the session login details have been set.
-	 */
-	public static boolean isSessionSetup() {
-		return (SESSION_USERNAME != null && SESSION_PASSWORD != null);
-	}
-	
-	
-	/**
-	 * Checks if there are any outstanding DSSession objects in use by DSJQuery.
-	 * If outstanding sessions exist, server and session details cannot be changed.
-	 * @category SETUP
-	 * 
-	 * @return TRUE if there are any DQJQuery actions holding onto and DSSession objects.
-	 */
-	private static boolean hasSessionsInUse() {
-		
-		if (SESSION_STACK_AVAILABLE != null &&
-				SESSION_STACK_AVAILABLE.availablePermits() < SESSION_STACK_SIZE) {
-			return true;
-		}
-		return false;
-	}
-	
-	
-	/**
-	 * Gets a DSSession object from a pool of available objects.
-	 * 
-	 * @return A connected DSSession object.
-	 * 
-	 * @throws InterruptedException
-	 * @throws DSException
-	 */
-	protected static synchronized DSSession getSession() throws InterruptedException, DSException {
-		
-		if (SESSION_STACK == null) {
-			SESSION_STACK = new LinkedBlockingDeque<>(SESSION_STACK_SIZE);
-			SESSION_STACK_AVAILABLE = new Semaphore(SESSION_STACK_SIZE, true);
-		}
-		
-		SESSION_STACK_AVAILABLE.acquire();
-		
-		if (SESSION_STACK.isEmpty()) {
-			DSServer dsServer = DSFactory.createServer(SERVER_NAME, SERVER_PORT);
-			DSSession dsSession = dsServer.createSession(SESSION_DOMAIN, SESSION_USERNAME, SESSION_PASSWORD);
-			return dsSession;
-			
-		} else {
-			DSSession dsSession = SESSION_STACK.pop();
-			
-			if (dsSession.isClosed()) {
-				DSServer dsServer = DSFactory.createServer(SERVER_NAME, SERVER_PORT);
-				dsSession = dsServer.createSession(SESSION_DOMAIN, SESSION_USERNAME, SESSION_PASSWORD);
-			}
-			
-			return dsSession;
-		}
-	}
-	
-	
-	/**
-	 * Returns a DSSession object to the pool for other threads to use.
-	 * 
-	 * @param dsSession - A DSSession object that will no longer be used by the thread returning it.
-	 */
-	protected static synchronized void returnSession(DSSession dsSession) {
-		if (dsSession != null) {
-			SESSION_STACK.push(dsSession);
-		}
-		SESSION_STACK_AVAILABLE.release();
-	}
-
-	
-	/**
-	 * Closes all DSSession objects currently queued.
-	 * This method should be called when DSJQuery is done being used, or won't be used for a while.
-	 */
-	public static synchronized void closeOpenSessions() {
-		
-		if (SESSION_STACK == null) {
-			return;
-		}
-		
-		while (!SESSION_STACK.isEmpty()) {
-			try {
-				DSSession dsSession = SESSION_STACK.pop();
-				DSServer dsServer = dsSession.getServer();
-				
-				dsSession.close();
-				dsServer.close();
-			}
-			catch (Exception e) {
-				// ignore
-			}
-		}
-	}
-	
-	
 	private List<DSObject> dsObjects = null;
 	
 	
@@ -282,11 +54,11 @@ public class DSJQuery implements Iterable<DSObject> {
 	 * @see <a href="https://api.jquery.com/jQuery/">jQuery() | jQuery API</a>
 	 */
 	public DSJQuery() throws DSJQueryException {
-		if (!isServerSetup()) {
-			throw new DSJQueryException("DocuShare server settings missing. Set using DSJQuery.serverSetup();");
+		if (!DSJQuerySessionHandler.isServerSetup()) {
+			throw new DSJQueryException("DocuShare server settings missing. Set using DSJQuerySessionHandler.serverSetup();");
 		}
-		else if (!isSessionSetup()) {
-			throw new DSJQueryException("DocuShare session settings missing. Set using DSJQuery.sessionSetup();");
+		else if (!DSJQuerySessionHandler.isSessionSetup()) {
+			throw new DSJQueryException("DocuShare session settings missing. Set using DSJQuerySessionHandler.sessionSetup();");
 		}
 	}
 	
@@ -307,7 +79,15 @@ public class DSJQuery implements Iterable<DSObject> {
 	}
 	
 	
-	private DSJQuery(List<DSObject> dsObjects) throws DSJQueryException {
+	/**
+	 * Creates a new DSJQuery object from a list of DSObjects.
+	 * @category CORE
+	 * 
+	 * @param dsObjects
+	 * 
+	 * @throws DSJQueryException
+	 */
+	public DSJQuery(List<DSObject> dsObjects) throws DSJQueryException {
 		this();
 		this.dsObjects = dsObjects;
 	}
@@ -337,7 +117,7 @@ public class DSJQuery implements Iterable<DSObject> {
 		DSSession dsSession = null;
 		
 		try {
-			dsSession = getSession();
+			dsSession = DSJQuerySessionHandler.getSession();
 		
 			List<DSObject> newDsObjects = null;
 			
@@ -377,7 +157,7 @@ public class DSJQuery implements Iterable<DSObject> {
 			return new DSJQuery(newDsObjects);
 		}
 		finally {
-			returnSession(dsSession);
+			DSJQuerySessionHandler.returnSession(dsSession);
 		}
 	}
 
@@ -400,7 +180,7 @@ public class DSJQuery implements Iterable<DSObject> {
 		
 		try {
 			
-			dsSession = getSession();
+			dsSession = DSJQuerySessionHandler.getSession();
 		
 			List<DSObject> newDsObjects = new ArrayList<>(1);
 			
@@ -441,7 +221,7 @@ public class DSJQuery implements Iterable<DSObject> {
 			return new DSJQuery(newDsObjects);
 		}
 		finally {
-			returnSession(dsSession);
+			DSJQuerySessionHandler.returnSession(dsSession);
 		}
 	}
 	
@@ -464,7 +244,7 @@ public class DSJQuery implements Iterable<DSObject> {
 		
 		try {
 			
-			dsSession = getSession();
+			dsSession = DSJQuerySessionHandler.getSession();
 		
 			List<DSObject> newDsObjects = null;
 			
@@ -507,7 +287,7 @@ public class DSJQuery implements Iterable<DSObject> {
 			return new DSJQuery(newDsObjects);
 		}
 		finally {
-			returnSession(dsSession);
+			DSJQuerySessionHandler.returnSession(dsSession);
 		}
 	}
 	
@@ -610,16 +390,28 @@ public class DSJQuery implements Iterable<DSObject> {
 		return children().filter(filterSelector);
 	}
 	
-		
-	public DSJQuery filter_byAttribute_startsWith (String attributeName, String attributeValue, boolean ignoreCase) throws DSException, DSJQueryException {
+	
+	/**
+	 * Reduces the set of objects to those with property values starting with a given value.
+	 * @category FILTERING
+	 * 
+	 * @param propertyName
+	 * @param propertyValue
+	 * @param ignoreCase
+	 * @return
+	 * 
+	 * @throws DSException
+	 * @throws DSJQueryException
+	 */
+	public DSJQuery filter_byProperty_startsWith (String propertyName, String propertyValue, boolean ignoreCase) throws DSException, DSJQueryException {
 				
-		List<DSObject> newDsObjects = new LinkedList<>();	
+		List<DSObject> newDsObjects = new ArrayList<>(dsObjects.size() / 2 + 1);	
 		
-		String attributeValueForCompare = (ignoreCase ? attributeValue.toLowerCase() : attributeValue);
+		final String propertyValueForCompare = (ignoreCase ? propertyValue.toLowerCase() : propertyValue);
 
 		for (DSObject obj : dsObjects) {
 			
-			Object value = obj.get(attributeName);
+			Object value = obj.get(propertyName);
 			
 			if (value != null) {
 
@@ -629,7 +421,7 @@ public class DSJQuery implements Iterable<DSObject> {
 					stringValue = stringValue.toLowerCase();
 				}
 				
-				if (stringValue.startsWith(attributeValueForCompare)) {
+				if (stringValue.startsWith(propertyValueForCompare)) {
 					newDsObjects.add(obj);
 				}
 			}
@@ -639,15 +431,27 @@ public class DSJQuery implements Iterable<DSObject> {
 	}
 	
 	
-	public DSJQuery filter_byAttribute_endsWith (String attributeName, String attributeValue, boolean ignoreCase) throws DSException, DSJQueryException {
+	/**
+	 * Reduces the set of objects to those with property values ending with a given value.
+	 * @category FILTERING
+	 * 
+	 * @param propertyName
+	 * @param propertyValue
+	 * @param ignoreCase
+	 * @return
+	 * 
+	 * @throws DSException
+	 * @throws DSJQueryException
+	 */
+	public DSJQuery filter_byProperty_endsWith (String propertyName, String propertyValue, boolean ignoreCase) throws DSException, DSJQueryException {
 		
-		List<DSObject> newDsObjects = new LinkedList<>();
+		List<DSObject> newDsObjects = new ArrayList<>(dsObjects.size() / 2 + 1);
 		
-		String attributeValueForCompare = (ignoreCase ? attributeValue.toLowerCase() : attributeValue);
+		String propertyValueForCompare = (ignoreCase ? propertyValue.toLowerCase() : propertyValue);
 		
 		for (DSObject obj : dsObjects) {
 			
-			Object value = obj.get(attributeName);
+			Object value = obj.get(propertyName);
 
 			if (value != null) {
 
@@ -657,7 +461,7 @@ public class DSJQuery implements Iterable<DSObject> {
 					stringValue = stringValue.toLowerCase();
 				}
 				
-				if (stringValue.endsWith(attributeValueForCompare)) {
+				if (stringValue.endsWith(propertyValueForCompare)) {
 					newDsObjects.add(obj);
 				}
 			}
@@ -667,15 +471,27 @@ public class DSJQuery implements Iterable<DSObject> {
 	}
 	
 	
-	public DSJQuery filter_byAttribute_contains (String attributeName, String attributeValue, boolean ignoreCase) throws DSException, DSJQueryException {
+	/**
+	 * Reduces the set of objects to those with property values containing a given value.
+	 * @category FILTERING
+	 * 
+	 * @param propertyName
+	 * @param propertyValue
+	 * @param ignoreCase
+	 * @return
+	 * 
+	 * @throws DSException
+	 * @throws DSJQueryException
+	 */
+	public DSJQuery filter_byProperty_contains (String propertyName, String propertyValue, boolean ignoreCase) throws DSException, DSJQueryException {
 		
-		List<DSObject> newDsObjects = new LinkedList<>();
+		List<DSObject> newDsObjects = new ArrayList<>(dsObjects.size() / 2 + 1);
 		
-		String attributeValueForCompare = (ignoreCase ? attributeValue.toLowerCase() : attributeValue);
+		final String propertyValueForCompare = (ignoreCase ? propertyValue.toLowerCase() : propertyValue);
 		
 		for (DSObject obj : dsObjects) {
 			
-			Object value = obj.get(attributeName);
+			Object value = obj.get(propertyName);
 
 			if (value != null) {
 
@@ -685,7 +501,7 @@ public class DSJQuery implements Iterable<DSObject> {
 					stringValue = stringValue.toLowerCase();
 				}
 				
-				if (stringValue.contains(attributeValueForCompare)) {
+				if (stringValue.contains(propertyValueForCompare)) {
 					newDsObjects.add(obj);
 				}
 			}
@@ -695,15 +511,27 @@ public class DSJQuery implements Iterable<DSObject> {
 	}
 	
 	
-	public DSJQuery filter_byAttribute_equals (String attributeName, String attributeValue, boolean ignoreCase) throws DSException, DSJQueryException {
+	/**
+	 * Reduces the set of objects to those with property values equal to a given value.
+	 * @category FILTERING
+	 * 
+	 * @param propertyName
+	 * @param propertyValue
+	 * @param ignoreCase
+	 * @return
+	 * 
+	 * @throws DSException
+	 * @throws DSJQueryException
+	 */
+	public DSJQuery filter_byProperty_equals (String propertyName, String propertyValue, boolean ignoreCase) throws DSException, DSJQueryException {
 		
-		List<DSObject> newDsObjects = new LinkedList<>();
+		List<DSObject> newDsObjects = new ArrayList<>(dsObjects.size() / 2 + 1);
 		
-		String attributeValueForCompare = (ignoreCase ? attributeValue.toLowerCase() : attributeValue);
+		String propertyValueForCompare = (ignoreCase ? propertyValue.toLowerCase() : propertyValue);
 		
 		for (DSObject obj : dsObjects) {
 			
-			Object value = obj.get(attributeName);
+			Object value = obj.get(propertyName);
 			
 			if (value != null) {
 
@@ -713,7 +541,7 @@ public class DSJQuery implements Iterable<DSObject> {
 					stringValue = stringValue.toLowerCase();
 				}
 				
-				if (stringValue.equals(attributeValueForCompare)) {
+				if (stringValue.equals(propertyValueForCompare)) {
 					newDsObjects.add(obj);
 				}
 			}
@@ -723,17 +551,26 @@ public class DSJQuery implements Iterable<DSObject> {
 	}
 	
 	
+	/**
+	 * Reduces the set of objects to those of a given object class.
+	 * @category FILTERING
+	 * 
+	 * @param className
+	 * @return
+	 * 
+	 * @throws DSException
+	 * @throws DSJQueryException
+	 */
 	public DSJQuery filter_byObjectClass (String className) throws DSException, DSJQueryException {
 		
-		List<DSObject> newDsObjects = new ArrayList<>(dsObjects);
-		List<DSObject> newDsObjectsCopy = new LinkedList<>(dsObjects);
+		List<DSObject> newDsObjectsCopy = new ArrayList<>(dsObjects.size() / 2 + 1);
 		
-		for (DSObject obj : newDsObjects) {
+		for (DSObject obj : dsObjects) {
 			
 			String objClassName = obj.getDSClass().getName();
 			
 			if (!objClassName.equals(className)) {
-				newDsObjectsCopy.remove(obj);
+				newDsObjectsCopy.add(obj);
 			}
 		}
 		
@@ -742,7 +579,7 @@ public class DSJQuery implements Iterable<DSObject> {
 	
 	
 	/**
-	 * Filters the current set of documents and collections using a selector.
+	 * Reduces the set of objects to those that match the given selector.
 	 * @category FILTERING
 	 * 
 	 * @param filterSelector - i.e. ".Document", "[content_type^='image/']"
@@ -778,35 +615,35 @@ public class DSJQuery implements Iterable<DSObject> {
 			// starts with
 			if (filterSelector.contains("^=")) {
 				
-				String attributeName = filterSelector.substring(1, filterSelector.indexOf("^="));
-				String attributeValue = filterSelector.substring(filterSelector.indexOf("^=") + 3, filterSelector.length() - 2);
+				String propertyName = filterSelector.substring(1, filterSelector.indexOf("^="));
+				String propertyValue = filterSelector.substring(filterSelector.indexOf("^=") + 3, filterSelector.length() - 2);
 				
-				return filter_byAttribute_startsWith(attributeName, attributeValue, false);
+				return filter_byProperty_startsWith(propertyName, propertyValue, false);
 			}
 			
 			// ends with
 			else if (filterSelector.contains("$=")) {
 					
-				String attributeName = filterSelector.substring(1, filterSelector.indexOf("$="));
-				String attributeValue = filterSelector.substring(filterSelector.indexOf("$=") + 3, filterSelector.length() - 2);
+				String propertyName = filterSelector.substring(1, filterSelector.indexOf("$="));
+				String propertyValue = filterSelector.substring(filterSelector.indexOf("$=") + 3, filterSelector.length() - 2);
 				
-				return filter_byAttribute_endsWith(attributeName, attributeValue, false);
+				return filter_byProperty_endsWith(propertyName, propertyValue, false);
 			}
 			
 			// contains
 			else if (filterSelector.contains("~=")) {
 					
-				String attributeName = filterSelector.substring(1, filterSelector.indexOf("~="));
-				String attributeValue = filterSelector.substring(filterSelector.indexOf("~=") + 3, filterSelector.length() - 2);
+				String propertyName = filterSelector.substring(1, filterSelector.indexOf("~="));
+				String propertyValue = filterSelector.substring(filterSelector.indexOf("~=") + 3, filterSelector.length() - 2);
 				
-				return filter_byAttribute_contains(attributeName, attributeValue, false);
+				return filter_byProperty_contains(propertyName, propertyValue, false);
 			}
 			else if (filterSelector.contains("=")) {
 				
-				String attributeName = filterSelector.substring(1, filterSelector.indexOf("="));
-				String attributeValue = filterSelector.substring(filterSelector.indexOf("=") + 2, filterSelector.length() - 2);
+				String propertyName = filterSelector.substring(1, filterSelector.indexOf("="));
+				String propertyValue = filterSelector.substring(filterSelector.indexOf("=") + 2, filterSelector.length() - 2);
 				
-				return filter_byAttribute_equals(attributeName, attributeValue, false);
+				return filter_byProperty_equals(propertyName, propertyValue, false);
 			}
 			else {
 				throw new DSJQuerySelectorException(filterSelector);
@@ -968,7 +805,7 @@ public class DSJQuery implements Iterable<DSObject> {
 	
 	
 	/**
-	 * Sets an attribute across all current elements.
+	 * Sets an attribute across all current objects.
 	 * @category ATTRIBUTES
 	 * 
 	 * @param attributeName
@@ -993,10 +830,75 @@ public class DSJQuery implements Iterable<DSObject> {
 	}
 	
 	
+	private static boolean hasKeyword (DSObject dsObject, String keyword, boolean ignoreCase) throws DSException {
+		
+		String currentKeywordsString = dsObject.getKeywords().trim();
+		
+		if (ignoreCase) {
+			keyword = keyword.toLowerCase();
+			currentKeywordsString = currentKeywordsString.toLowerCase();
+		}
+		
+		String[] currentKeywords = currentKeywordsString.split(",");
+		
+		for (String currentKeyword : currentKeywords) {
+
+			if (currentKeyword.trim().equals(keyword)) {
+				return true;
+			}
+		}
+		
+		return false;
+	}
+	
+	
 	/**
-	 * Adds a new keyword to the comma-separated keyword list.
-	 * The new keyword is only added if the keyword is not already part of the list.
+	 * Determines whether any of the current objects have a given keyword,
+	 * with the option to ignore case.
+	 * @category ATTRIBUTES
 	 * 
+	 * @param keyword
+	 * @param ignoreCase - TRUE if case should be ignored
+	 * @return TRUE if the keyword is assigned to at least one object
+	 * 
+	 * @throws DSException
+	 */
+	public boolean hasKeyword (String keyword, boolean ignoreCase) throws DSException {
+		
+		if (dsObjects == null) {
+			return false;
+		}
+		
+		for (DSObject dsObject : dsObjects) {
+			
+			if (hasKeyword(dsObject, keyword, ignoreCase)) {
+				return true;
+			}
+		}
+		
+		return false;
+	}
+	
+	
+	/**
+	 * Determines whether any of the current objects have a given keyword.
+	 * @category ATTRIBUTES
+	 * 
+	 * @param keyword
+	 * @return
+	 * 
+	 * @throws DSException
+	 * 
+	 * @see <a href="https://api.jquery.com/hasclass/">hasClass() | jQuery API</a>
+	 */
+	public boolean hasKeyword (String keyword) throws DSException {
+		return hasKeyword (keyword, false);
+	}
+	
+	
+	/**
+	 * Adds a new keyword to the comma-separated keyword list for each DSObject.
+	 * The new keyword is only added if the keyword is not already part of the list.
 	 * @category ATTRIBUTES
 	 * 
 	 * @param keywordToAdd
@@ -1013,22 +915,14 @@ public class DSJQuery implements Iterable<DSObject> {
 		
 		for (DSObject obj : dsObjects) {
 			
-			boolean keywordFound = false;
-			
-			String currentKeywordsString = obj.getKeywords().trim();
-			String[] currentKeywords = currentKeywordsString.split(",");
-			
-			for (String keyword : currentKeywords) {
-				if (keyword.trim().equals(keywordToAdd)) {
-					keywordFound = true;
-					break;
-				}
-			}
-			
-			if (!keywordFound) {
+			if (!hasKeyword(obj, keywordToAdd, false)) {
+				
+				String currentKeywordsString = obj.getKeywords();
+				
 				obj.setKeywords(currentKeywordsString + 
 						(currentKeywordsString.equals("") ? "" : ", ") +
 						keywordToAdd);
+				
 				obj.save();
 			}
 		}
@@ -1060,7 +954,7 @@ public class DSJQuery implements Iterable<DSObject> {
 			for (String keyword : currentKeywords) {
 				if (keyword.trim().equals(keywordToRemove)) {
 					
-					List<String> newKeywordsList = new LinkedList<>(Arrays.asList(currentKeywords));
+					List<String> newKeywordsList = Arrays.asList(currentKeywords);
 					newKeywordsList.remove(keyword);
 					
 					obj.setKeywords(String.join(", ", newKeywordsList));
@@ -1170,7 +1064,7 @@ public class DSJQuery implements Iterable<DSObject> {
 		
 		try {
 			
-			dsSession = getSession();
+			dsSession = DSJQuerySessionHandler.getSession();
 		
 			List<DSObject> newDsObjects = new ArrayList<>(1);
 	
@@ -1218,7 +1112,7 @@ public class DSJQuery implements Iterable<DSObject> {
 			return new DSJQuery(newDsObjects);
 		}
 		finally {
-			returnSession(dsSession);
+			DSJQuerySessionHandler.returnSession(dsSession);
 		}
 	}
 
@@ -1243,7 +1137,7 @@ public class DSJQuery implements Iterable<DSObject> {
 		DSSession dsSession = null;
 		
 		try {
-			dsSession = getSession();
+			dsSession = DSJQuerySessionHandler.getSession();
 		
 			List<DSObject> newDsObjects = new ArrayList<>(1);
 	
@@ -1272,7 +1166,7 @@ public class DSJQuery implements Iterable<DSObject> {
 			return new DSJQuery(newDsObjects);
 		}
 		finally {
-			returnSession(dsSession);
+			DSJQuerySessionHandler.returnSession(dsSession);
 		}
 	}
 	
