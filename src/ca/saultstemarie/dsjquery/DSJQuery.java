@@ -569,7 +569,7 @@ public class DSJQuery implements Iterable<DSObject> {
 			
 			String objClassName = obj.getDSClass().getName();
 			
-			if (!objClassName.equals(className)) {
+			if (objClassName.equals(className)) {
 				newDsObjectsCopy.add(obj);
 			}
 		}
