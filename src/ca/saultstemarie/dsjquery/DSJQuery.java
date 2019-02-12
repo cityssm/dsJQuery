@@ -93,7 +93,15 @@ public class DSJQuery implements Iterable<DSObject> {
 	}
 	
 	
-	private DSJQuery(DSObject dsObject) throws DSJQueryException {
+	/**
+	 * Creates a new DSJquery object from a single DSObject.
+	 * @category CORE
+	 * 
+	 * @param dsObject
+	 * 
+	 * @throws DSJQueryException
+	 */
+	public DSJQuery(DSObject dsObject) throws DSJQueryException {
 		this();
 		dsObjects = new ArrayList<>(1);
 		dsObjects.add(dsObject);
@@ -827,6 +835,22 @@ public class DSJQuery implements Iterable<DSObject> {
 		}
 		
 		return this;
+	}
+	
+	
+	/**
+	 * Clears an attribute across all current objects.
+	 * @category ATTRIBUTES
+	 * 
+	 * @param attributeName
+	 * @return The current DSJQuery object
+	 * 
+	 * @throws DSException
+	 * 
+	 * @see <a href="https://api.jquery.com/removeAttr/">removeAttr() | jQuery API</a>
+	 */
+	public DSJQuery removeAttr (String attributeName) throws DSException {
+		return attr(attributeName, "");		
 	}
 	
 	
