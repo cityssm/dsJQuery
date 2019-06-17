@@ -67,7 +67,7 @@ Searches beneath all collections for objects that match the given selector.
 - Use `.` to select by class.
   - i.e. `.Collection`, `.Document`
 - Use `#` to select a specific object by handle.
-  - i.e. `.Collection-111`
+  - i.e. `#Collection-111`
 
 
 **dsjQuery.filter(String selector);**
