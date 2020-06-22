@@ -94,7 +94,7 @@ public class DSJQuery implements Iterable<DSObject> {
 	
 	
 	/**
-	 * Creates a new DSJquery object from a single DSObject.
+	 * Creates a new DSJQuery object from a single DSObject.
 	 * @category CORE
 	 * 
 	 * @param dsObject
@@ -809,6 +809,27 @@ public class DSJQuery implements Iterable<DSObject> {
 		
 		Object value = dsObjects.get(0).get(attributeName);
 		return value;
+	}
+	
+	
+	/**
+	 * Get the handle for the first element in the current set.
+	 * @category ATTRIBUTES
+	 * 
+	 * @throws DSException
+	 * 
+	 * @see <a href="https://api.jquery.com/attr/">attr() | jQuery API</a>
+	 */
+	public String handle () throws DSException {
+		
+		if (dsObjects == null)
+			return null;
+		
+		if (dsObjects.size() == 0) {
+			return null;
+		}
+		
+		return dsObjects.get(0).getHandle().toString();
 	}
 	
 	
