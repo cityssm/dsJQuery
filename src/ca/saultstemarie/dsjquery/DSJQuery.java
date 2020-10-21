@@ -17,6 +17,7 @@ import com.xerox.docushare.DSLoginPrincipal;
 import com.xerox.docushare.DSObject;
 import com.xerox.docushare.DSObjectIterator;
 import com.xerox.docushare.DSResultIterator;
+import com.xerox.docushare.DSSelectSet;
 import com.xerox.docushare.DSSession;
 import com.xerox.docushare.FileContentElement;
 import com.xerox.docushare.db.DatabaseException;
@@ -30,6 +31,7 @@ import com.xerox.docushare.query.DSCollectionScope;
 import com.xerox.docushare.query.DSQuery;
 
 import ca.saultstemarie.dsjquery.DSJQueryException.DSJQuerySelectorException;
+
 
 /**
  * <b>DSJQuery - DocuShare jQuery</b>
@@ -1212,6 +1214,35 @@ public class DSJQuery implements Iterable<DSObject> {
 		}
 		finally {
 			DSJQuerySessionHandler.returnSession(dsSession);
+		}
+	}
+	
+	
+	/**
+	 * Removes all objects in the DSJQuery object.
+	 * @category REMOVING
+	 * 
+	 * @throws DSException
+	 * @throws InterruptedException
+	 */
+	public void remove () throws DSException, InterruptedException {
+		
+		if (dsObjects == null)
+			return;
+		
+		DSSession dsSession = null;
+		
+		try {
+			dsSession = DSJQuerySessionHandler.getSession();
+			
+			for (DSObject obj : dsObjects) {
+				dsSession.deleteObject(obj.getHandle(), new DSSelectSet());
+			}
+		}
+		finally {
+			if (dsSession != null) {
+				DSJQuerySessionHandler.returnSession(dsSession);
+			}
 		}
 	}
 	

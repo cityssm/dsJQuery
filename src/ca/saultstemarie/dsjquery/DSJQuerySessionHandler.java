@@ -32,7 +32,7 @@ public class DSJQuerySessionHandler {
 	
 	private static Deque<DSSession> SESSION_STACK = null;
 	private static Semaphore        SESSION_STACK_AVAILABLE = null;
-	private static int              SESSION_STACK_SIZE = 2;
+	private static int              SESSION_STACK_SIZE = 3;
 	
 	
 	private static String SERVER_NAME = null;
@@ -169,7 +169,7 @@ public class DSJQuerySessionHandler {
 	 * @throws InterruptedException
 	 * @throws DSException
 	 */
-	protected static synchronized DSSession getSession() throws InterruptedException, DSException {
+	public static synchronized DSSession getSession() throws InterruptedException, DSException {
 		
 		if (SESSION_STACK == null) {
 			SESSION_STACK = new LinkedBlockingDeque<>(SESSION_STACK_SIZE);
@@ -201,7 +201,7 @@ public class DSJQuerySessionHandler {
 	 * 
 	 * @param dsSession - A DSSession object that will no longer be used by the thread returning it.
 	 */
-	protected static synchronized void returnSession(DSSession dsSession) {
+	public static synchronized void returnSession(DSSession dsSession) {
 		if (dsSession != null) {
 			SESSION_STACK.push(dsSession);
 		}
